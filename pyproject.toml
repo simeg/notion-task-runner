@@ -1,0 +1,77 @@
+[project]
+name = "notion-auto-updater"
+version = "0.1.0"
+description = "An app to automatically manage my Notion pages"
+authors = [
+    {name = "Simon Egersand", email = "s.egersand@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "requests (>=2.32.4,<3.0.0)",
+    "dotenv (>=0.9.9,<0.10.0)",
+    "coloredlogs (>=15.0.1,<16.0.0)",
+    "google-api-python-client (>=2.173.0,<3.0.0)",
+    "google-auth (>=2.40.3,<3.0.0)",
+    "google-auth-httplib2 (>=0.2.0,<0.3.0)",
+    "google-auth-oauthlib (>=1.2.2,<2.0.0)",
+    "logger (>=1.4,<2.0)",
+]
+
+[tool.poetry]
+packages = [{include = "notion_task_runner", from = "src"}]
+
+[tool.poetry.group.dev.dependencies]
+black = "^25.1.0"
+ruff = "^0.12.0"
+mypy = "^1.16.1"
+isort = "^6.0.1"
+types-requests = "^2.32.4.20250611"
+pytest = "^8.4.0"
+pytest-cov = "^6.2.1"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+src = ["src"]
+lint.extend-select = ["I", "B", "C4", "SIM", "UP", "RUF", "F821"]
+# I = isort rules, B = bugbear, C4 = comprehensions, SIM = simplifications, UP = pyupgrade
+# RUF = ruff-specific, F821 = undefined names
+exclude = ["build", "dist", ".venv"]
+
+[tool.mypy]
+python_version = "3.10"
+check_untyped_defs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+ignore_missing_imports = true
+warn_unused_ignores = true
+show_error_codes = true
+no_namespace_packages = true
+strict = true
+exclude = '(build|dist|\.venv)'
+mypy_path = "src"
+
+[tool.isort]
+profile = "black"
+line_length = 88
+skip = ["build", "dist", ".venv"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
