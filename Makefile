@@ -38,7 +38,7 @@ clean:  ## Remove cache and coverage artifacts
 	find . -type d -name '__pycache__' -exec rm -r {} +
 	rm -rf .pytest_cache .mypy_cache htmlcov .coverage
 
-ci: coverage  ## Run all pre-checks for CI
+ci: run coverage  ## Run all pre-checks for CI
 
 run:  ## Run the Notion task runner script
 	$(POETRY_RUN) python src/notion_task_runner/task_runner.py
