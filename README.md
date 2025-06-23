@@ -1,4 +1,4 @@
-# 🧠 Notion Task Runner [![codecov](https://codecov.io/gh/simeg/notion-task-runner/graph/badge.svg?token=QA0G9JV92I)](https://codecov.io/gh/simeg/notion-task-runner)
+# 🧠 Notion Task Runner [![Notion Task Runner](https://github.com/simeg/notion-task-runner/actions/workflows/notion-task-runner.yml/badge.svg)](https://github.com/simeg/notion-task-runner/actions/workflows/notion-task-runner.yml) [![codecov](https://codecov.io/gh/simeg/notion-task-runner/graph/badge.svg?token=QA0G9JV92I)](https://codecov.io/gh/simeg/notion-task-runner)
 
 This project automates Notion page updates, exports and backups automatically.
 It's easy to forget this exists — that's by design. It just runs.
