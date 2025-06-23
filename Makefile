@@ -22,7 +22,7 @@ check-types:  ## Run MyPy to check type annotations
 	$(POETRY_RUN) mypy $(SRC)
 
 coverage:  ## Run tests with coverage output
-	$(POETRY_RUN) pytest --cov=everdrive_version_notifier --cov-report=term-missing --cov-report=xml
+	$(POETRY_RUN) pytest --cov=notion_task_runner --cov-report=term-missing --cov-report=xml
 
 coverage-html:  ## Run tests with HTML coverage report
 	$(POETRY_RUN) pytest --cov=notion_task_runner --cov-report html

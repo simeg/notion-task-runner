@@ -47,12 +47,12 @@ def mock_notion_client_400():
 
 @pytest.fixture
 def mock_client_single_page():
-  client = MagicMock()
-  client.post.return_value = {
-    "results": [{"id": "1"}, {"id": "2"}],
-    "next_cursor": None
-  }
-  return client
+    mock = MagicMock()
+    mock.post.return_value = {
+        "results": [{"id": "1"}, {"id": "2"}],
+        "has_more": False
+    }
+    return mock
 
 @pytest.fixture
 def mock_client_empty_response():
@@ -114,3 +114,10 @@ def mock_post_response():
 @pytest.fixture
 def mock_patch_response():
     return MagicMock()
+
+@pytest.fixture
+def mock_config():
+    mock = MagicMock()
+    mock.from_env.return_value = mock
+    mock.notion_api_key = "some-api-key"
+    return mock

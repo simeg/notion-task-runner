@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 from notion_task_runner.logger import get_logger
-from notion_task_runner.task_interface import Task
+from notion_task_runner.task import Task
 from notion_task_runner.tasks.backup.export_file_watcher import ExportFileWatcher
 from notion_task_runner.tasks.backup.google_credentials_provider import (
     GoogleCredentialsProvider,

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from notion_task_runner.logger import get_logger
 from notion_task_runner.notion import NotionClient
-from notion_task_runner.task_interface import Task
+from notion_task_runner.task import Task
 from notion_task_runner.tasks.download_export.export_file_downloader import (
     ExportFileDownloader,
 )

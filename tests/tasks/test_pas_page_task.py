@@ -1,10 +1,11 @@
 from notion_task_runner.tasks.pas_page_task import PASPageTask
 
 
-def test_pas_page_task_happy_path(caplog, mock_notion_client_200, mock_db_w_props, mock_calculator_30):
+def test_pas_page_task_happy_path(caplog, mock_notion_client_200, mock_db_w_props, mock_config, mock_calculator_30):
     sut = PASPageTask(
         client=mock_notion_client_200,
         db=mock_db_w_props,
+        config=mock_config,
         calculator=mock_calculator_30,
         block_id="dummy-page-id"
     )
@@ -23,10 +24,11 @@ def test_pas_page_task_happy_path(caplog, mock_notion_client_200, mock_db_w_prop
     assert kwargs["json"]["callout"]["rich_text"][1]["text"]["content"] == "30kr"
     assert "✅ Updated Prylar Att Sälja page!" in caplog.text
 
-def test_pas_page_task_with_empty_database(mock_notion_client_200, calculator, mock_db_empty_list):
+def test_pas_page_task_with_empty_database(mock_notion_client_200, mock_config,  calculator, mock_db_empty_list):
     sut = PASPageTask(
         client=mock_notion_client_200,
         db=mock_db_empty_list,
+        config=mock_config,
         calculator=calculator,
         block_id="dummy-page-id"
     )
@@ -41,10 +43,11 @@ def test_pas_page_task_with_empty_database(mock_notion_client_200, calculator, m
     assert "https://api.notion.com/v1/blocks/dummy-page-id" in args
     assert kwargs["json"]["callout"]["rich_text"][1]["text"]["content"] == "0kr"
 
-def test_pas_page_task_handles_client_error(caplog, mock_notion_client_400, mock_db_w_props, mock_calculator_30):
+def test_pas_page_task_handles_client_error(caplog, mock_notion_client_400, mock_db_w_props, mock_config, mock_calculator_30):
     sut = PASPageTask(
         client=mock_notion_client_400,
         db=mock_db_w_props,
+        config=mock_config,
         calculator=mock_calculator_30,
         block_id="test-page"
     )

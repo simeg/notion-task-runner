@@ -1,7 +1,7 @@
 from notion_task_runner.logger import get_logger
 from notion_task_runner.notion import NotionClient, NotionDatabase
 from notion_task_runner.sum_calculator import SumCalculator
-from notion_task_runner.task_interface import Task
+from notion_task_runner.task import Task
 from notion_task_runner.tasks.task_config import TaskConfig
 
 log = get_logger(__name__)
