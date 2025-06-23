@@ -14,6 +14,13 @@ log = get_logger(__name__)
 
 
 class GoogleDriveUploadTask(Task):
+    """
+    A task that uploads a Notion export file to Google Drive.
+
+    This task waits for a file with a specific prefix to appear in the configured downloads directory.
+    It then uploads the file to a Google Drive folder using service account credentials.
+    """
+
     KEY_GOOGLE_DRIVE_ROOT_FOLDER_ID = "GOOGLE_DRIVE_ROOT_FOLDER_ID"
     KEY_GOOGLE_DRIVE_SERVICE_ACCOUNT_SECRET_JSON = (
         "GOOGLE_DRIVE_SERVICE_ACCOUNT_SECRET_JSON"
