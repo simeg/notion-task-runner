@@ -16,7 +16,7 @@ class ExportFileWatcher:
 
     @staticmethod
     def wait_for_file(
-        directory: Path, prefix: str, timeout: int = 300, interval: int = 5
+        directory: Path, prefix: str, timeout_seconds: int = 600, interval: int = 5
     ) -> Path:
         """
         Waits for a file with the given prefix to appear in the specified directory.
@@ -24,7 +24,7 @@ class ExportFileWatcher:
 
         :param directory: Path to the directory to watch.
         :param prefix: File prefix to match.
-        :param timeout: Maximum time in seconds to wait.
+        :param timeout_seconds: Maximum time in seconds to wait.
         :param interval: Time in seconds between checks.
         :return: The matching Path object.
         :raises SystemExit: If no matching file is found before the timeout.
@@ -32,7 +32,7 @@ class ExportFileWatcher:
         log.info("Waiting for file starting with '%s' in %s ...", prefix, directory)
         elapsed = 0
 
-        while elapsed < timeout:
+        while elapsed < timeout_seconds:
             matching_files = list(directory.glob(f"{prefix}*"))
             if matching_files:
                 log.info("Found file: %s", matching_files[0])
@@ -43,5 +43,5 @@ class ExportFileWatcher:
             log.debug("Still waiting...")
 
         raise SystemExit(
-            f"No file starting with '{prefix}' found in {directory} after {timeout} seconds."
+            f"No file starting with '{prefix}' found in {directory} after {timeout_seconds} seconds."
         )

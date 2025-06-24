@@ -38,7 +38,7 @@ class PrylarkivPageTask(Task):
         self.block_id = block_id or self.BLOCK_ID
 
     def run(self) -> None:
-        rows = self.db.get_entries(self.DATABASE_ID)
+        rows = self.db.fetch_rows(self.DATABASE_ID)
         next_pryl_number = int(len(rows) + 1)
 
         url = f"https://api.notion.com/v1/blocks/{self.block_id}"

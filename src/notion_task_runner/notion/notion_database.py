@@ -1,6 +1,7 @@
 from typing import Any
 
 from requests import HTTPError
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 from notion_task_runner.logger import get_logger
 from notion_task_runner.notion import NotionClient
@@ -17,11 +18,22 @@ class NotionDatabase:
     It relies on a configured NotionClient and API key provided via TaskConfig.
     """
 
-    def __init__(self, client: NotionClient, config: TaskConfig) -> None:
+    DEFAULT_MAX_RETRIES = 3
+    DEFAULT_RETRY_WAIT_SECONDS = 2
+
+    def __init__(
+        self,
+        client: NotionClient,
+        config: TaskConfig,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+        retry_wait_seconds: int = DEFAULT_RETRY_WAIT_SECONDS,
+    ) -> None:
         self.client = client
         self.config = config
+        self.max_retries = max_retries
+        self.retry_wait_seconds = retry_wait_seconds
 
-    def get_entries(self, database_id: str | None = None) -> list[dict[str, Any]]:
+    def fetch_rows(self, database_id: str | None = None) -> list[dict[str, Any]]:
         if not database_id:
             raise ValueError("No database ID provided.")
 
@@ -30,15 +42,8 @@ class NotionDatabase:
         next_cursor = None
 
         while True:
-            payload: dict[str, str] | dict[str, Any] = (
-                {"start_cursor": next_cursor} if next_cursor else {}
-            )
-            headers: dict[str, str] = {
-                "Authorization": f"Bearer {self.config.notion_api_key}",
-                "Notion-Version": "2022-06-28",
-                "Content-Type": "application/json",
-            }
-            data = self.client.post(url, headers=headers, json=payload)
+            payload = self._build_payload(next_cursor)
+            data = self._retry_fetch_rows(url, payload)
 
             if data.get("status", 200) != 200:
                 raise HTTPError(
@@ -51,3 +56,23 @@ class NotionDatabase:
                 break
 
         return all_results
+
+    def _retry_fetch_rows(self, url: str, payload: dict[str, Any]) -> dict[str, Any]:
+        @retry(
+            stop=stop_after_attempt(self.max_retries),
+            wait=wait_fixed(self.retry_wait_seconds),
+        )
+        def _do_request() -> dict[str, Any]:
+            return self.client.post(url, headers=self._build_headers(), json=payload)
+
+        return _do_request()
+
+    def _build_headers(self) -> dict[str, str]:
+        return {
+            "Authorization": f"Bearer {self.config.notion_api_key}",
+            "Notion-Version": "2022-06-28",
+            "Content-Type": "application/json",
+        }
+
+    def _build_payload(self, next_cursor: str | None) -> dict[str, Any]:
+        return {"start_cursor": next_cursor} if next_cursor else {}

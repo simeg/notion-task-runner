@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from tenacity import retry, stop_after_attempt, wait_fixed
+
 from notion_task_runner.logger import get_logger
 from notion_task_runner.notion import NotionClient
 
@@ -14,8 +16,18 @@ class ExportFileDownloader:
     It includes basic verification to ensure the file was successfully downloaded and exists on disk.
     """
 
-    def __init__(self, client: NotionClient) -> None:
+    DEFAULT_MAX_RETRIES = 3
+    DEFAULT_RETRY_WAIT_SECONDS = 2
+
+    def __init__(
+        self,
+        client: NotionClient,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+        retry_wait_seconds: int = DEFAULT_RETRY_WAIT_SECONDS,
+    ) -> None:
         self.client = client
+        self.max_retries = max_retries
+        self.retry_wait_seconds = retry_wait_seconds
 
     def download_and_verify(self, url: str, path: Path) -> Path | None:
         log.info(f"Downloading file to: {path}")
@@ -28,7 +40,11 @@ class ExportFileDownloader:
         return downloaded
 
     def _download_file(self, url: str, download_path: Path) -> Path | None:
-        try:
+        @retry(
+            stop=stop_after_attempt(self.max_retries),
+            wait=wait_fixed(self.retry_wait_seconds),
+        )
+        def _do_download() -> Path:
             response = self.client.get(url, stream=True)
 
             with open(download_path, "wb") as f:
@@ -36,6 +52,9 @@ class ExportFileDownloader:
                     f.write(chunk)
 
             return download_path
+
+        try:
+            return _do_download()
         except Exception as e:
-            log.warning("Exception during file download", exc_info=e)
+            log.warning("Download failed after retries: %s", e)
             return None

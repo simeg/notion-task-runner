@@ -21,7 +21,7 @@ def mock_client():
 @pytest.fixture
 def mock_db():
     db = MagicMock()
-    db.get_entries.return_value = [{} for _ in range(5)]  # simulate 5 entries
+    db.fetch_rows.return_value = [{} for _ in range(5)]  # simulate 5 entries
     return db
 
 

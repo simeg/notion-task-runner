@@ -18,7 +18,6 @@ class GoogleDriveServiceFactory:
     """
 
     OAUTH_SCOPE_GOOGLE_DRIVE = "https://www.googleapis.com/auth/drive"
-    APPLICATION_NAME = "NOTION-BACKUP"
 
     @staticmethod
     def create(service_account_secret: str) -> Resource | None:
@@ -40,6 +39,7 @@ class GoogleDriveServiceFactory:
             )
             service = build("drive", "v3", credentials=credentials)
             return service
+
         except Exception as e:
             log.error("Failed to create Google Drive service: %s", e, exc_info=e)
             return None

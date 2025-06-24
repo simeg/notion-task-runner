@@ -1,6 +1,8 @@
 import json
 from typing import cast
 
+from tenacity import retry, stop_after_attempt, wait_fixed
+
 from notion_task_runner.logger import get_logger
 from notion_task_runner.notion import NotionClient
 from notion_task_runner.tasks.task_config import TaskConfig
@@ -20,29 +22,44 @@ class ExportFileTrigger:
     ENQUEUE_ENDPOINT = "https://www.notion.so/api/v3/enqueueTask"
     TOKEN_V2 = "token_v2"
 
-    def __init__(self, client: NotionClient, config: TaskConfig) -> None:
+    def __init__(
+        self,
+        client: NotionClient,
+        config: TaskConfig,
+        max_retries: int = 3,
+        retry_wait_seconds: int = 2,
+    ) -> None:
         self.client = client
         self.config = config
+        self.max_retries = max_retries
+        self.retry_wait_seconds = retry_wait_seconds
 
     def trigger_export_task(self) -> str | None:
-        headers: dict[str, str] = {
-            "Cookie": f"{self.TOKEN_V2}={self.config.notion_token_v2}",
-            "Content-Type": "application/json",
-        }
-        response = self.client.post(
-            self.ENQUEUE_ENDPOINT, data=self._get_task_json(), headers=headers
+        @retry(
+            stop=stop_after_attempt(self.max_retries),
+            wait=wait_fixed(self.retry_wait_seconds),
+            reraise=True,
         )
-        data = response
+        def _do_trigger() -> str | None:
+            headers: dict[str, str] = {
+                "Cookie": f"{self.TOKEN_V2}={self.config.notion_token_v2}",
+                "Content-Type": "application/json",
+            }
+            response = self.client.post(
+                self.ENQUEUE_ENDPOINT, data=self._get_task_json(), headers=headers
+            )
 
-        if "taskId" not in data:
-            log.error(f"Error: {data.get('name')} - {data.get('message')}")
-            if data.get("name") == "UnauthorizedError":
-                log.error(
-                    "Your token is not valid anymore. Try logging in again and updating it."
-                )
-            return None
+            if "taskId" not in response:
+                log.error(f"Error: {response.get('name')} - {response.get('message')}")
+                if response.get("name") == "UnauthorizedError":
+                    log.error(
+                        "Your token is not valid anymore. Try logging in again and updating it."
+                    )
+                return None
 
-        return cast(str, data["taskId"])
+            return cast(str, response["taskId"])
+
+        return _do_trigger()
 
     def _get_task_json(self) -> str:
         return json.dumps(

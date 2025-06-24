@@ -1,7 +1,7 @@
 [project]
-name = "notion-auto-updater"
+name = "notion-task-runner"
 version = "0.1.0"
-description = "An app to automatically manage my Notion pages"
+description = "An app to automatically manage and backup my Notion pages"
 authors = [
     {name = "Simon Egersand", email = "s.egersand@gmail.com"}
 ]
@@ -16,6 +16,7 @@ dependencies = [
     "google-auth-httplib2 (>=0.2.0,<0.3.0)",
     "google-auth-oauthlib (>=1.2.2,<2.0.0)",
     "logger (>=1.4,<2.0)",
+    "tenacity (>=9.1.2,<10.0.0)",
 ]
 
 [tool.poetry]

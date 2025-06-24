@@ -1,11 +1,29 @@
 import json
-import time
+from typing import Any
+
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 from notion_task_runner.logger import get_logger
 from notion_task_runner.notion import NotionClient
 from notion_task_runner.tasks.task_config import TaskConfig
 
 log = get_logger(__name__)
+
+
+class NoActivityError(Exception):
+    pass
+
+
+class StaleExportError(Exception):
+    pass
+
+
+class MissingExportLinkError(Exception):
+    pass
+
+
+class MalformedResponseError(Exception):
+    pass
 
 
 class ExportFilePoller:
@@ -18,59 +36,43 @@ class ExportFilePoller:
     """
 
     NOTIFICATION_ENDPOINT = "https://www.notion.so/api/v3/getNotificationLogV2"
-    TOKEN_V2 = "token_v2"
-    FETCH_DOWNLOAD_URL_RETRY_SECONDS = 5
+    TOKEN_V2_KEY = "token_v2"
+    DEFAULT_MAX_RETRIES = 500
+    DEFAULT_RETRY_WAIT_SECONDS = 5
 
-    def __init__(self, client: NotionClient, config: TaskConfig):
+    def __init__(
+        self,
+        client: NotionClient,
+        config: TaskConfig,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+        retry_wait_seconds: int = DEFAULT_RETRY_WAIT_SECONDS,
+    ) -> None:
         self.client = client
         self.config = config
+        self.DEFAULT_MAX_RETRIES = max_retries
+        self.DEFAULT_RETRY_WAIT_SECONDS = retry_wait_seconds
 
     def poll_for_download_url(self, export_trigger_timestamp: int) -> str | None:
-
-        # return "https://file.notion.so/f/t/fc0f29e2-8805-4aa4-84a1-cebae4623370/Export-11f38aa4-6901-4ade-bb4f-d4c062fe8809.zip?table=user_export&id=216d872b-594c-8102-9933-005d0857e033&spaceId=&expirationTimestamp=1750880316806&signature=LPCp0JP_ilqUDWvqgMBxMmmkhX1PtRQXpnioUAti2Ts&download=true&downloadName=fc0f29e2-8805-4aa4-84a1-cebae4623370%2FExport-11f38aa4-6901-4ade-bb4f-d4c062fe8809.zip"
-
-        headers = {
-            "Cookie": f"{self.TOKEN_V2}={self.config.notion_token_v2}",
-            "Content-Type": "application/json",
-        }
-
-        for _ in range(500):
-            time.sleep(self.FETCH_DOWNLOAD_URL_RETRY_SECONDS)
-
-            response = self.client.post(
-                self.NOTIFICATION_ENDPOINT,
-                headers=headers,
-                data=self._get_notification_json(),
-            )
-
+        @retry(
+            stop=stop_after_attempt(self.DEFAULT_MAX_RETRIES),
+            wait=wait_fixed(self.DEFAULT_RETRY_WAIT_SECONDS),
+        )
+        def _poll() -> str:
             try:
-                data = response
-                record_map = data.get("recordMap", {})
-                activity_map = record_map.get("activity")
-
-                if not activity_map:
-                    log.info("Still waiting for Notion export to complete...")
-                    continue
-
-                node = next(iter(activity_map.values()))["value"]
-                notification_start_timestamp = int(node["start_time"])
-
-                if notification_start_timestamp < export_trigger_timestamp:
-                    log.info("Waiting for fresh export notification...")
-                    continue
-
-                export_activity: str = node.get("edits", [{}])[0].get("link")
-                if not export_activity:
-                    log.info("Download URL not present yet. Retrying...")
-                    continue
-
-                return export_activity
-
+                return self._try_get_download_url(export_trigger_timestamp)
+            except (
+                NoActivityError,
+                StaleExportError,
+                MissingExportLinkError,
+                MalformedResponseError,
+            ) as e:
+                log.info(str(e))
+                raise
             except Exception as e:
-                log.error("Error parsing response", exc_info=e)
-                continue
+                log.error("Error polling download URL", exc_info=e)
+                raise
 
-        return None
+        return _poll()
 
     def _get_notification_json(self) -> str:
         return json.dumps(
@@ -81,3 +83,41 @@ class ExportFilePoller:
                 "variant": "no_grouping",
             }
         )
+
+    def _build_headers(self) -> dict[str, str]:
+        return {
+            "Cookie": f"{self.TOKEN_V2_KEY}={self.config.notion_token_v2}",
+            "Content-Type": "application/json",
+        }
+
+    def _extract_activity_node(self, response: dict[str, Any]) -> dict[str, Any]:
+        activity_map = response.get("recordMap", {}).get("activity")
+        if not activity_map:
+            raise NoActivityError("Waiting for Notion export to complete...")
+
+        return dict[str, Any](next(iter(activity_map.values()))["value"])
+
+    def _get_export_link(
+        self, node: dict[str, Any], export_trigger_timestamp: int
+    ) -> str:
+        notification_start_timestamp = int(node["start_time"])
+        if notification_start_timestamp < export_trigger_timestamp:
+            raise StaleExportError(
+                "Waiting for fresh Notion backup export notification..."
+            )
+
+        export_link = node.get("edits", [{}])[0].get("link")
+        if not export_link:
+            raise MissingExportLinkError("Download URL not present yet.")
+
+        return str(export_link)
+
+    def _try_get_download_url(self, export_trigger_timestamp: int) -> str:
+        headers = self._build_headers()
+        response = self.client.post(
+            self.NOTIFICATION_ENDPOINT,
+            headers=headers,
+            data=self._get_notification_json(),
+        )
+        node = self._extract_activity_node(response)
+        return self._get_export_link(node, export_trigger_timestamp)

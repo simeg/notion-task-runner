@@ -88,7 +88,7 @@ def mock_client_malformed_response():
 @pytest.fixture
 def mock_db_w_props():
   db = MagicMock()
-  db.get_entries.return_value = [
+  db.fetch_rows.return_value = [
     {"properties": {"Slutpris": {"number": 10}}},
     {"properties": {"Slutpris": {"number": 20}}},
   ]
@@ -98,7 +98,7 @@ def mock_db_w_props():
 @pytest.fixture
 def mock_db_empty_list():
   db = MagicMock()
-  db.get_entries.return_value = []
+  db.fetch_rows.return_value = []
   return db
 
 # ========================

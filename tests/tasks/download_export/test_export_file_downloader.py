@@ -1,10 +1,11 @@
-from unittest.mock import MagicMock, patch
+from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
 from notion_task_runner.notion import NotionClient
 from notion_task_runner.tasks.download_export.export_file_downloader import \
-  ExportFileDownloader
+    ExportFileDownloader
 
 
 @pytest.fixture
@@ -43,7 +44,7 @@ def test_download_and_verify_fail_download(tmp_path):
     assert result is None
 
 
-def test__download_file_exception(tmp_path):
+def test_download_file_exception(tmp_path):
     client = MagicMock(spec=NotionClient)
     downloader = ExportFileDownloader(client)
 
@@ -51,3 +52,17 @@ def test__download_file_exception(tmp_path):
     result = downloader._download_file("http://fake.url/file.zip", tmp_path / "output.zip")
 
     assert result is None
+
+def test_download_file_retries_on_failure(tmp_path: Path):
+    client = MagicMock(spec=NotionClient)
+    client.get.side_effect = Exception("network error")
+
+    downloader = ExportFileDownloader(client, max_retries=3, retry_wait_seconds=0)
+    path = tmp_path / "output.zip"
+
+    result = downloader._download_file("http://fake.url/file.zip", path)
+    assert result is None
+    assert client.get.call_count == 3
+
+    # Ensure it retried 3 times
+    assert client.get.call_count == 3

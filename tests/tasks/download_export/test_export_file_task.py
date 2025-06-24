@@ -26,7 +26,7 @@ def export_file_task(mock_client, mock_config):
 def test_run_success(monkeypatch, export_file_task, mock_config):
     export_file_task.trigger.trigger_export_task = MagicMock(return_value="fake-task-id")
     export_file_task.poller.poll_for_download_url = MagicMock(return_value="http://fake.url/export.zip")
-    fake_file = Path("/tmp/notion-export.html_2025-06-23_00-00-00.zip")
+    fake_file = Path("/tmp/notion-backup.html_2025-06-23_00-00-00.zip")
     export_file_task.downloader.download_and_verify = MagicMock(return_value=fake_file)
 
     result = export_file_task.run()

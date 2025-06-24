@@ -26,20 +26,20 @@ This is the main entry point that kicks off the entire export/download/upload pi
 
 ## 🛠️ Make targets
 
-| Target          | Description                                                           |
-|-----------------|-----------------------------------------------------------------------|
-| `make run`      | Run the task runner (trigger + download + optional upload)            |
-| `make lint`     | Run all linters (style, types, imports)                               |
-| `make format`   | Auto-format the code using `black` and `isort`                        |
-| `make test`     | Run all tests                                                         |
-| `make coverage` | Run tests with coverage report                                        |
-| `make check-types` | Run `mypy` to validate typing                                      |
-| `make sort-imports` | Sort imports using `isort`                                       |
-| `make check-style` | Check formatting without making changes (black + isort)           |
-| `make coverage-html` | Generate an HTML report for test coverage                      |
-| `make clean`    | Remove cache and temporary files                                      |
-| `make ci`       | Run all CI checks (formatting, linting, type-checking, tests)         |
-| `make help`     | Show all available `make` targets                                     |
+| Target               | Description                                                   |
+|----------------------|---------------------------------------------------------------|
+| `make run`           | Run the task runner (trigger + download + optional upload)    |
+| `make lint`          | Run all linters (style, types, imports)                       |
+| `make format`        | Auto-format the code using `black` and `isort`                |
+| `make test`          | Run all tests                                                 |
+| `make coverage`      | Run tests with coverage report                                |
+| `make check-types`   | Run `mypy` to validate typing                                 |
+| `make sort-imports`  | Sort imports using `isort`                                    |
+| `make check-style`   | Check formatting without making changes (black + isort)       |
+| `make coverage-html` | Generate an HTML report for test coverage                     |
+| `make clean`         | Remove cache and temporary files                              |
+| `make ci`            | Run all CI checks (formatting, linting, type-checking, tests) |
+| `make help`          | Show all available `make` targets                             |
 
 
 ## 🔧 Configuration

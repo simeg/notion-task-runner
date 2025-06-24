@@ -1,21 +1,21 @@
+# ruff: noqa: B008
 import os
 from dataclasses import dataclass
+from logging import Logger
 from pathlib import Path
 from typing import Literal, cast
 
 from notion_task_runner.logger import get_logger
-from notion_task_runner.utils import fail
-
-log = get_logger(__name__)
+from notion_task_runner.utils import fail, get_or_raise
 
 # Valid export types for export tasks
 VALID_EXPORT_TYPES = ["markdown", "html"]
 ExportType = Literal["markdown", "html"]
 
-DEFAULT_EXPORT_DIR = "downloads"
+DEFAULT_EXPORT_DIR = "/tmp"
 
 
-@dataclass
+@dataclass(frozen=True)  # Make the class immutable
 class TaskConfig:
     """
     Holds configuration for running Notion-related tasks, loaded from environment variables.
@@ -34,23 +34,31 @@ class TaskConfig:
     downloads_directory_path: Path
     export_type: ExportType
     flatten_export_file_tree: bool
+    # ================================
+    # Google Drive Upload Task Specific
+    # ================================
+    google_drive_service_account_secret_json: str | None = None
+    google_drive_root_folder_id: str | None = None
 
     @staticmethod
-    def from_env() -> "TaskConfig":
-        notion_space_id = os.getenv("NOTION_SPACE_ID")
-        notion_token_v2 = os.getenv("NOTION_TOKEN_V2")
-        notion_api_key = os.getenv("NOTION_API_KEY")
-        # downloads_directory_path = os.getenv("DOWNLOADS_DIRECTORY_PATH")
-
-        if not notion_api_key:
-            fail(log, "Missing required environment variable: NOTION_API_KEY")
+    def from_env(external_log: Logger = get_logger(__name__)) -> "TaskConfig":
+        notion_space_id = get_or_raise(external_log, "NOTION_SPACE_ID")
+        notion_token_v2 = get_or_raise(external_log, "NOTION_TOKEN_V2")
+        notion_api_key = get_or_raise(external_log, "NOTION_API_KEY")
 
         (
             downloads_dir_path,
             export_type,
             flatten_export_file_tree,
             downloads_directory,
-        ) = TaskConfig._config_download_export_task(notion_space_id, notion_token_v2)
+        ) = TaskConfig._config_download_export_task(external_log)
+
+        google_drive_service_account_secret_json = get_or_raise(
+            external_log, "GOOGLE_DRIVE_SERVICE_ACCOUNT_SECRET_JSON"
+        )
+        google_drive_root_folder_id = get_or_raise(
+            external_log, "GOOGLE_DRIVE_ROOT_FOLDER_ID"
+        )
 
         return TaskConfig(
             notion_space_id=notion_space_id,
@@ -62,11 +70,16 @@ class TaskConfig:
             downloads_directory_path=downloads_dir_path,
             export_type=export_type,
             flatten_export_file_tree=flatten_export_file_tree,
+            # ================================
+            # Google Drive Upload Task Specific
+            # ================================
+            google_drive_service_account_secret_json=google_drive_service_account_secret_json,
+            google_drive_root_folder_id=google_drive_root_folder_id,
         )
 
     @staticmethod
     def _config_download_export_task(
-        notion_space_id: str | None, notion_token_v2: str | None
+        external_log: Logger = get_logger(__name__),
     ) -> tuple[Path, ExportType, bool, Path]:
         downloads_directory = Path(
             os.getenv("DOWNLOADS_DIRECTORY_PATH") or DEFAULT_EXPORT_DIR
@@ -76,15 +89,9 @@ class TaskConfig:
             os.getenv("FLATTEN_EXPORT_FILE_TREE", "False").lower() == "true"
         )
 
-        if not notion_space_id or not notion_token_v2:
-            fail(
-                log,
-                "Missing required environment variables: NOTION_SPACE_ID and/or NOTION_TOKEN_V2",
-            )
-
         if export_type not in VALID_EXPORT_TYPES:
             fail(
-                log,
+                external_log,
                 f"Invalid export type: {export_type}. Must be one of {', '.join(VALID_EXPORT_TYPES)}",
             )
 

@@ -9,13 +9,13 @@ from notion_task_runner.tasks.backup.export_file_watcher import \
 
 
 def test_wait_for_file_finds_file_immediately(tmp_path: Path):
-    file = tmp_path / "notion-export-test.zip"
+    file = tmp_path / "notion-backup-test.zip"
     file.write_text("dummy content")
 
     result = ExportFileWatcher.wait_for_file(
         directory=tmp_path,
-        prefix="notion-export",
-        timeout=10,
+        prefix="notion-backup",
+        timeout_seconds=10,
         interval=1,
     )
 
@@ -23,7 +23,7 @@ def test_wait_for_file_finds_file_immediately(tmp_path: Path):
 
 
 def test_wait_for_file_finds_file_after_delay(tmp_path: Path):
-    target_file = tmp_path / "notion-export-delayed.zip"
+    target_file = tmp_path / "notion-backup-delayed.zip"
 
     # Keep reference to the real time.sleep
     original_sleep = time.sleep
@@ -36,20 +36,20 @@ def test_wait_for_file_finds_file_after_delay(tmp_path: Path):
     with patch("time.sleep", side_effect=lambda x: delayed_file_creation() if x == 1 else original_sleep(x)):
         result = ExportFileWatcher.wait_for_file(
             directory=tmp_path,
-            prefix="notion-export",
-            timeout=5,
+            prefix="notion-backup",
+            timeout_seconds=5,
             interval=1,
         )
 
     assert result.exists()
-    assert result.name.startswith("notion-export")
+    assert result.name.startswith("notion-backup")
 
 def test_wait_for_file_times_out(tmp_path: Path):
     with pytest.raises(SystemExit) as excinfo:
         ExportFileWatcher.wait_for_file(
             directory=tmp_path,
             prefix="nonexistent",
-            timeout=2,
+            timeout_seconds=2,
             interval=1,
         )
 

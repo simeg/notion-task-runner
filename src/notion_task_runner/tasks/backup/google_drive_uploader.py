@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from google.oauth2.service_account import Credentials
@@ -6,6 +7,7 @@ from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
 from notion_task_runner.logger import get_logger
+from notion_task_runner.tasks.task_config import TaskConfig
 
 log = get_logger(__name__)
 
@@ -18,9 +20,8 @@ class GoogleDriveUploader:
     It performs validation on the file before upload and logs the outcome of the operation.
     """
 
-    def __init__(self, service_account_secret: str, root_folder_id: str) -> None:
-        self.root_folder_id = root_folder_id
-        self.drive_service = self._create_drive_service(service_account_secret)
+    def __init__(self, config: TaskConfig) -> None:
+        self.config = config
 
     def upload(self, file_to_upload: Path) -> bool:
         log.info("Google Drive: uploading file '%s' ...", file_to_upload.name)
@@ -31,13 +32,15 @@ class GoogleDriveUploader:
             )
             return False
 
-        file_metadata = {"name": file_to_upload.name, "parents": [self.root_folder_id]}
+        folder_id = self.config.google_drive_root_folder_id
+        file_metadata = {"name": file_to_upload.name, "parents": [folder_id]}
 
         media = MediaFileUpload(file_to_upload, mimetype="application/zip")
 
         try:
             response = (
-                self.drive_service.files()
+                self._create_drive_service()
+                .files()
                 .create(body=file_metadata, media_body=media, fields="id, parents")
                 .execute()
             )
@@ -52,8 +55,9 @@ class GoogleDriveUploader:
         )
         return True
 
-    def _create_drive_service(self, secret: str) -> Resource:
+    def _create_drive_service(self) -> Resource:
+        secret = self.config.google_drive_service_account_secret_json.strip()  # type: ignore[union-attr]
         credentials: Credentials = Credentials.from_service_account_info(  # type: ignore[no-untyped-call]
-            eval(secret), scopes=["https://www.googleapis.com/auth/drive"]
+            json.loads(secret), scopes=["https://www.googleapis.com/auth/drive"]
         )
         return build("drive", "v3", credentials=credentials)

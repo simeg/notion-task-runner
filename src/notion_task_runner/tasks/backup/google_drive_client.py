@@ -22,13 +22,12 @@ class GoogleDriveClient:
         self.drive_service = drive_service
         self.root_folder_id = root_folder_id
 
-    def upload(self, file_to_upload: Path, mime_type: str = "application/zip") -> bool:
+    def upload(self, file_to_upload: Path) -> bool:
         """
         Uploads the given file to Google Drive.
 
         Args:
             file_to_upload (Path): The path to the file to upload.
-            mime_type (str): The MIME type of the file. Defaults to 'application/zip'.
 
         Returns:
             bool: True if upload succeeded, False otherwise.
@@ -47,7 +46,7 @@ class GoogleDriveClient:
             "parents": [self.root_folder_id],
         }
 
-        media = MediaFileUpload(str(file_to_upload), mimetype=mime_type)
+        media = MediaFileUpload(str(file_to_upload), mimetype="application/zip")
 
         try:
             response = (

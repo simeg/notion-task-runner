@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 from googleapiclient.errors import HttpError
 from notion_task_runner.tasks.backup.google_drive_uploader import GoogleDriveUploader
+from notion_task_runner.tasks.task_config import TaskConfig
 
 
 @pytest.fixture
@@ -33,7 +34,11 @@ def test_upload_success(mock_creds, mock_build, tmp_path, dummy_secret):
     mock_drive_service.files.return_value.create.return_value = mock_files_create
     mock_build.return_value = mock_drive_service
 
-    uploader = GoogleDriveUploader(dummy_secret, "root-id")
+    mock_config = MagicMock(spec=TaskConfig)
+    mock_config.google_drive_root_folder_id = "some-root-id"
+    mock_config.google_drive_service_account_secret_json  = '{"is_json": "true"}'
+
+    uploader = GoogleDriveUploader(mock_config)
     success = uploader.upload(file_path)
 
     assert success is True
@@ -45,7 +50,11 @@ def test_upload_success(mock_creds, mock_build, tmp_path, dummy_secret):
 def test_upload_file_does_not_exist(mock_creds, mock_build, tmp_path, dummy_secret):
     file_path = tmp_path / "missing.zip"
 
-    uploader = GoogleDriveUploader(dummy_secret, "root-id")
+    mock_config = MagicMock(spec=TaskConfig)
+    mock_config.google_drive_root_folder_id = "some-root-id"
+    mock_config.google_drive_service_account_secret_json  = '{"is_json": "true"}'
+
+    uploader = GoogleDriveUploader(mock_config)
     assert uploader.upload(file_path) is False
 
 
@@ -61,5 +70,9 @@ def test_upload_http_error(mock_creds, mock_build, tmp_path, dummy_secret):
     mock_drive_service.files.return_value.create.return_value = mock_files_create
     mock_build.return_value = mock_drive_service
 
-    uploader = GoogleDriveUploader(dummy_secret, "root-id")
+    mock_config = MagicMock(spec=TaskConfig)
+    mock_config.google_drive_root_folder_id = "some-root-id"
+    mock_config.google_drive_service_account_secret_json  = '{"is_json": "true"}'
+
+    uploader = GoogleDriveUploader(mock_config)
     assert uploader.upload(file_path) is False
