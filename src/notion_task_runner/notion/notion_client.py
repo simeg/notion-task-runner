@@ -44,9 +44,19 @@ class NotionClient:
         response.raise_for_status()
         return response
 
-    def get(self, url: str, stream: bool) -> requests.Response:
+    def get(
+        self, url: str, headers: dict[str, str] | None = None, stream: bool = False
+    ) -> requests.Response:
         session = self._get_thread_local_session()
-        response = session.get(url, stream=stream)
+        response = session.get(url, headers=headers, stream=stream)
+        response.raise_for_status()
+        return response
+
+    def delete(
+        self, url: str, headers: dict[str, str] | None = None
+    ) -> requests.Response:
+        session = self._get_thread_local_session()
+        response = session.delete(url, headers=headers)
         response.raise_for_status()
         return response
 

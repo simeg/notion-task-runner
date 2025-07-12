@@ -1,47 +1,82 @@
 # Python tool commands through Poetry
 POETRY_RUN=poetry run
 SRC=src/
+WATCH_FILES = find . -type f
 
-.PHONY: default check-style format-code check-types sort-imports lint coverage coverage-html test clean ci format help run
+.PHONY: default check-style fix-style format-code sort-imports check-types coverage coverage-html test lint format clean ci run watch watch-test watch-test-only help
 
-default: lint  ## Default target: run linting and type checks
+## Default target: run linting and type checks
+default: lint
 
-check-style:  ## Run Ruff to check for lint issues
+## Run Ruff to check for lint issues
+check-style:
 	$(POETRY_RUN) ruff check $(SRC)
 
-fix-style:  ## Auto-fix lint issues with Ruff
+convert:
+	$(POETRY_RUN) python convert.py
+
+## Auto-fix lint issues with Ruff
+fix-style:
 	$(POETRY_RUN) ruff check $(SRC) --fix
 
-format-code:  ## Run Black to format code
+## Run Black to format code
+format-code:
 	$(POETRY_RUN) black $(SRC)
 
-sort-imports:  ## Run isort to sort imports
+## Run isort to sort imports
+sort-imports:
 	$(POETRY_RUN) isort $(SRC)
 
-check-types:  ## Run MyPy to check type annotations
+## Run MyPy to check type annotations
+check-types:
 	$(POETRY_RUN) mypy $(SRC)
 
-coverage:  ## Run tests with coverage output
+## Run tests with coverage output
+coverage:
 	$(POETRY_RUN) pytest --cov=notion_task_runner --cov-report=term-missing --cov-report=xml
 
-coverage-html:  ## Run tests with HTML coverage report
+## Run tests with HTML coverage report
+coverage-html:
 	$(POETRY_RUN) pytest --cov=notion_task_runner --cov-report html
 
-test:  ## Run all tests
+## Run all tests
+test:
 	$(POETRY_RUN) pytest
 
-lint: check-style format-code sort-imports check-types  ## Run all linting and type checks
+## Run all linting and type checks
+lint: check-style format-code sort-imports check-types
 
-format: fix-style format-code sort-imports  ## Run all formatters
+## Run all formatters
+format: fix-style format-code sort-imports
 
-clean:  ## Remove cache and coverage artifacts
+## Remove cache and coverage artifacts
+clean:
 	find . -type d -name '__pycache__' -exec rm -r {} +
 	rm -rf .pytest_cache .mypy_cache htmlcov .coverage
 
-ci: run coverage  ## Run all pre-checks for CI
+## Run all pre-checks for CI
+ci: run coverage
 
-run:  ## Run the Notion task runner script
+## Run the Notion task runner script
+run:
 	$(POETRY_RUN) python src/notion_task_runner/task_runner.py
 
-help:  ## Show help info for each Makefile command
-	@grep -E '^[a-zA-Z_-]+:.*?## ' Makefile | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+## Watch for changes and re-run the main script
+watch:
+	$(WATCH_FILES) | entr -c make run
+
+## Watch for changes and re-run all tests
+watch-test:
+	$(WATCH_FILES) | entr -c make test
+
+## Watch for changes and run only tests marked with @pytest.mark.only
+watch-test-only:
+	$(WATCH_FILES) | entr -c poetry run pytest -m only
+
+## Show help info for each Makefile command
+help:
+	@awk ' \
+		BEGIN { FS = ":.*##"; print "Available targets:\n" } \
+		/^[a-zA-Z0-9_-]+:.*##/ { printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2 } \
+		/^##/ { sub(/^## /, "", $$0); getline line; if (match(line, /^([a-zA-Z0-9_-]+):/)) printf "  \033[36m%-20s\033[0m %s\n", substr(line, RSTART, RLENGTH-1), $$0 } \
+	' Makefile

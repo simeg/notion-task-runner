@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock
-from notion_task_runner.tasks.prylarkiv_page_task import PrylarkivPageTask
+from notion_task_runner.tasks.prylarkiv.prylarkiv_page_task import PrylarkivPageTask
 from notion_task_runner.tasks.task_config import TaskConfig
 
 

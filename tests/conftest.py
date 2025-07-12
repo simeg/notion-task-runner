@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
 
-from notion_task_runner.sum_calculator import SumCalculator
+from notion_task_runner.tasks.pas.sum_calculator import SumCalculator
 
 
 # ========================

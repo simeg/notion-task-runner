@@ -1,4 +1,4 @@
-from notion_task_runner.sum_calculator import SumCalculator
+from notion_task_runner.tasks.pas.sum_calculator import SumCalculator
 
 def test_calculate_handles_valid_and_missing_data(calculator: SumCalculator):
     rows = [

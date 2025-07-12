@@ -1,4 +1,4 @@
-from notion_task_runner.tasks.pas_page_task import PASPageTask
+from notion_task_runner.tasks.pas.pas_page_task import PASPageTask
 
 
 def test_pas_page_task_happy_path(caplog, mock_notion_client_200, mock_db_w_props, mock_config, mock_calculator_30):

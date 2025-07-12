@@ -39,9 +39,12 @@ class TaskConfig:
     # ================================
     google_drive_service_account_secret_json: str | None = None
     google_drive_root_folder_id: str | None = None
+    is_prod: bool = False
 
     @staticmethod
     def from_env(external_log: Logger = get_logger(__name__)) -> "TaskConfig":
+        is_prod = os.getenv("IS_PROD", "false").lower() == "true"
+
         notion_space_id = get_or_raise(external_log, "NOTION_SPACE_ID")
         notion_token_v2 = get_or_raise(external_log, "NOTION_TOKEN_V2")
         notion_api_key = get_or_raise(external_log, "NOTION_API_KEY")
@@ -61,6 +64,9 @@ class TaskConfig:
         )
 
         return TaskConfig(
+            # ================================
+            # Notion Task Specific
+            # ================================
             notion_space_id=notion_space_id,
             notion_token_v2=notion_token_v2,
             notion_api_key=notion_api_key,
@@ -75,6 +81,10 @@ class TaskConfig:
             # ================================
             google_drive_service_account_secret_json=google_drive_service_account_secret_json,
             google_drive_root_folder_id=google_drive_root_folder_id,
+            # ================================
+            # Global Config
+            # ================================
+            is_prod=is_prod,
         )
 
     @staticmethod
