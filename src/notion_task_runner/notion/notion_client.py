@@ -28,9 +28,7 @@ class NotionClient:
         json: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
-        session = self._get_thread_local_session()
-        response = session.post(url, headers=headers, data=data, json=json)
-        response.raise_for_status()
+        response = self._request("POST", url, headers=headers, data=data, json=json)
         return cast(dict[str, Any], response.json())
 
     def patch(
@@ -39,25 +37,39 @@ class NotionClient:
         json: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
     ) -> requests.Response:
-        session = self._get_thread_local_session()
-        response = session.patch(url, headers=headers, json=json)
-        response.raise_for_status()
-        return response
+        return self._request("PATCH", url, headers=headers, json=json)
 
     def get(
         self, url: str, headers: dict[str, str] | None = None, stream: bool = False
     ) -> requests.Response:
-        session = self._get_thread_local_session()
-        response = session.get(url, headers=headers, stream=stream)
-        response.raise_for_status()
-        return response
+        return self._request("GET", url, headers=headers, stream=stream)
 
     def delete(
         self, url: str, headers: dict[str, str] | None = None
     ) -> requests.Response:
+        return self._request("DELETE", url, headers=headers)
+
+    def _request(
+        self,
+        method: str,
+        url: str,
+        headers: dict[str, str] | None = None,
+        data: Any = None,
+        json: dict[str, Any] | None = None,
+        stream: bool = False,
+    ) -> requests.Response:
         session = self._get_thread_local_session()
-        response = session.delete(url, headers=headers)
-        response.raise_for_status()
+        response = session.request(
+            method, url, headers=headers, data=data, json=json, stream=stream
+        )
+
+        if not response.ok:
+            log.error(f"HTTP Error: {response.status_code} {response.text}")
+            try:
+                response.raise_for_status()
+            except requests.exceptions.HTTPError:
+                raise
+
         return response
 
     def _create_authenticated_session(self) -> Session:
@@ -65,7 +77,9 @@ class NotionClient:
 
         config = TaskConfig.from_env()
         session = Session()
-        session.cookies = cookies.cookiejar_from_dict({"token_v2": config.notion_token_v2})  # type: ignore[no-untyped-call]
+        session.cookies = cookies.cookiejar_from_dict(
+            {"token_v2": config.notion_token_v2}
+        )  # type: ignore[no-untyped-call]
 
         # Trigger Notion session state
         response = session.post("https://www.notion.so/api/v3/loadUserContent", json={})

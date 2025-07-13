@@ -4,15 +4,9 @@ from dotenv import load_dotenv
 
 from notion_task_runner.logger import get_logger
 from notion_task_runner.notion import NotionClient, NotionDatabase
-from notion_task_runner.tasks import PrylarkivPageTask
-from notion_task_runner.tasks.backup.google_drive_upload_task import (
-    GoogleDriveUploadTask,
-)
-from notion_task_runner.tasks.car.car_costs_task import CarCostsTask
-from notion_task_runner.tasks.car.car_metadata_task import CarMetadataTask
-from notion_task_runner.tasks.download_export.export_file_task import ExportFileTask
-from notion_task_runner.tasks.pas.pas_page_task import PASPageTask
-from notion_task_runner.tasks.pas.sum_calculator import SumCalculator
+
+# from notion_task_runner.tasks.car.car_metadata_task import CarMetadataTask
+from notion_task_runner.tasks.statistics.stats_task import StatsTask
 from notion_task_runner.tasks.task_config import TaskConfig
 
 log = get_logger(__name__)
@@ -37,14 +31,15 @@ class TaskRunner:
         database = NotionDatabase(client, config)
 
         self.tasks = [
-            PASPageTask(
-                client, NotionDatabase(client, config), config, SumCalculator()
-            ),
-            PrylarkivPageTask(client, NotionDatabase(client, config), config),
-            ExportFileTask(client, config),
-            GoogleDriveUploadTask(config),
-            CarMetadataTask(client, config),
-            CarCostsTask(client, database, config),
+            # PASPageTask(
+            #     client, NotionDatabase(client, config), config, SumCalculator()
+            # ),
+            # PrylarkivPageTask(client, NotionDatabase(client, config), config),
+            # ExportFileTask(client, config),
+            # GoogleDriveUploadTask(config),
+            # CarMetadataTask(client, config),
+            # CarCostsTask(client, database, config),
+            StatsTask(client, database, config),
         ]
 
     def run(self) -> None:
@@ -55,8 +50,8 @@ class TaskRunner:
             for future in futures:
                 try:
                     future.result()
-                except Exception as e:
-                    log.error(f"Task failed: {e}")
+                except Exception:
+                    log.exception("Task failed")
 
 
 if __name__ == "__main__":
