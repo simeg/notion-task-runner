@@ -111,8 +111,8 @@ class StatsFetcher:
         for row in rows:
             props = row["properties"]
             name = self._get_plain_text(props, "Name")
-            cost = props["Cost (SEK)"]["number"]
-            purchased_date = props["Aquired at"]["date"]["start"]
+            cost = props["Kostnad (SEK)"]["number"]
+            purchased_date = props["Köpt den"]["date"]["start"]
             watches.append(Watch(name=name, cost=cost, purchased_date=purchased_date))
         return watches
 
@@ -182,8 +182,8 @@ class StatsFetcher:
             props = row["properties"]
 
             artist = self._get_plain_text(props, "Artist")
-            title = self._get_plain_text(props, "Title")
-            year_str = int(self._get_plain_text(props, "Year"))
+            title = self._get_plain_text(props, "Titel")
+            year_str = int(self._get_plain_text(props, "År"))
 
             vinyls.append(Vinyl(artist=artist, title=title, release_year=year_str))
         return vinyls

@@ -34,6 +34,7 @@ jobs:
           NOTION_TOKEN_V2: ${{ secrets.NOTION_TOKEN_V2 }}
           GOOGLE_DRIVE_SERVICE_ACCOUNT_SECRET_JSON: ${{ secrets.GOOGLE_DRIVE_SERVICE_ACCOUNT_SECRET_JSON }}
           GOOGLE_DRIVE_ROOT_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_ROOT_FOLDER_ID }}
+          IS_PROD: ${{ vars.IS_PROD }}
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
