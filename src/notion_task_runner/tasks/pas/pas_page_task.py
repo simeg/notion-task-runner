@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from notion_task_runner.logger import get_logger
 from notion_task_runner.notion import NotionClient, NotionDatabase
 from notion_task_runner.task import Task
@@ -41,6 +43,9 @@ class PASPageTask(Task):
         rows = self.db.fetch_rows(self.DATABASE_ID)
         total_sum = self.calculator.calculate(rows)
 
+        now = datetime.now()
+        time_and_date_now = now.strftime("%H:%M %d/%-m")
+
         url = f"https://api.notion.com/v1/blocks/{self.block_id}"
         data = {
             "callout": {
@@ -54,6 +59,13 @@ class PASPageTask(Task):
                         "type": "text",
                         "text": {"content": f"{total_sum}kr"},
                         "annotations": {"bold": False},
+                    },
+                    {
+                        "type": "text",
+                        "text": {
+                            "content": " (Senast uppdaterad: " + time_and_date_now + ")"
+                        },
+                        "annotations": {"italic": True, "color": "gray"},
                     },
                 ]
             }

@@ -6,7 +6,6 @@ from notion_task_runner.logger import get_logger
 from notion_task_runner.notion import NotionClient, NotionDatabase
 from notion_task_runner.tasks import PrylarkivPageTask
 from notion_task_runner.tasks.car.car_costs_task import CarCostsTask
-from notion_task_runner.tasks.car.car_metadata_task import CarMetadataTask
 from notion_task_runner.tasks.pas.pas_page_task import PASPageTask
 from notion_task_runner.tasks.pas.sum_calculator import SumCalculator
 from notion_task_runner.tasks.statistics.stats_task import StatsTask
@@ -40,7 +39,6 @@ class TaskRunner:
             PrylarkivPageTask(client, NotionDatabase(client, config), config),
             # ExportFileTask(client, config),
             # GoogleDriveUploadTask(config),
-            CarMetadataTask(client, config),
             CarCostsTask(client, database, config),
             StatsTask(client, database, config),
         ]

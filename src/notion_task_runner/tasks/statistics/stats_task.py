@@ -1,5 +1,6 @@
 import concurrent.futures
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 import requests
@@ -16,6 +17,12 @@ from notion_task_runner.tasks.task_config import TaskConfig
 log = get_logger(__name__)
 
 """
+
+22eaa18d-640d-80cb-96a9-c634a1175591 column_list <-- main column
+
+22eaa18d-640d-802c-8244-d52c5d91e4ed left column
+22eaa18d-640d-8030-b346-cd39912d160b right column
+
 22eaa18d-640d-80a4-ab34-f5f36679e772 child_database
 22eaa18d-640d-805e-99c0-ea4335f3ebc9 divider
 22eaa18d-640d-80cf-a3e1-c195a31f5ce8 child_database <-- This is the stats database ID
@@ -58,7 +65,7 @@ class StatsTask(Task):
         }
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = []
+            futures = [executor.submit(self._update_last_updated_text)]
             for title, value in row_lookup.items():
                 row_id = self._get_row_id_by_title(title, rows_and_titles)
                 futures.append(
@@ -115,6 +122,40 @@ class StatsTask(Task):
         }
 
         data = {"properties": {column_name: {"number": float(new_value)}}}
+
+        response = requests.patch(url, headers=headers, json=data)
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            log.error(f"HTTP Error: {e.response.status_code} {e.response.text}")
+            raise
+        return response.json()
+
+    def _update_last_updated_text(self) -> Any:
+        now = datetime.now()
+        time_and_date_now = now.strftime("%H:%M %d/%-m")
+
+        block_id = "233aa18d-640d-80a5-987d-d6a98f96a8d0"
+        url = f"https://api.notion.com/v1/blocks/{block_id}"
+        headers = {
+            "Authorization": f"Bearer {self.config.notion_api_key}",
+            "Notion-Version": "2022-06-28",
+            "Content-Type": "application/json",
+        }
+
+        data = {
+            "paragraph": {
+                "rich_text": [
+                    {
+                        "type": "text",
+                        "text": {
+                            "content": "(Senast uppdaterad: " + time_and_date_now + ")"
+                        },
+                        "annotations": {"italic": True, "color": "gray"},
+                    },
+                ]
+            }
+        }
 
         response = requests.patch(url, headers=headers, json=data)
         try:
