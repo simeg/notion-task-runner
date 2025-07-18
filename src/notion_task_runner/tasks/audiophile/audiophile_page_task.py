@@ -1,7 +1,7 @@
 from datetime import datetime
+from typing import Any
 
 from notion_task_runner.logger import get_logger
-from notion_task_runner.notion import NotionClient, NotionDatabase
 from notion_task_runner.task import Task
 from notion_task_runner.tasks.pas.sum_calculator import SumCalculator
 from notion_task_runner.tasks.task_config import TaskConfig
@@ -9,39 +9,30 @@ from notion_task_runner.tasks.task_config import TaskConfig
 log = get_logger(__name__)
 
 
-class PASPageTask(Task):
-    """
-    Task that updates the 'Prylar att sälja' Notion page with the total sum of sold items.
+class AudiophilePageTask(Task):
 
-    This task retrieves all entries from a Notion database, calculates the total sum using
-    the provided SumCalculator, and updates a specific callout block in the Notion page
-    with the result.
-
-    Attributes:
-        BLOCK_ID (str): Default ID of the callout block to update.
-        DATABASE_ID (str): ID of the Notion database containing items for sale.
-    """
-
-    BLOCK_ID = "215aa18d-640d-8043-b78c-fab9b2bdf7dc"
-    DATABASE_ID = "1fbaa18d-640d-804d-82c0-ce27d072c10b"
+    CALLOUT_BLOCK_ID = "233aa18d-640d-80e4-a9d9-e7026992d380"
+    DATABASE_ID = "233aa18d-640d-80a9-9b0b-e9a0383c906c"
 
     def __init__(
         self,
-        client: NotionClient,
-        db: NotionDatabase,
+        client: Any,
+        db: Any,
         config: TaskConfig,
         calculator: SumCalculator,
         block_id: str | None = None,
     ):
-        self.client = client
-        self.db = db
+        from notion_task_runner.notion import NotionClient, NotionDatabase
+
+        self.client: NotionClient = client
+        self.db: NotionDatabase = db
         self.config = config
-        self.calculator = calculator
-        self.block_id = block_id or self.BLOCK_ID
+        self.calculator: SumCalculator = calculator
+        self.block_id: str = block_id or self.CALLOUT_BLOCK_ID
 
     def run(self) -> None:
         rows = self.db.fetch_rows(self.DATABASE_ID)
-        total_sum = self.calculator.calculate_total_for_column(rows, "Slutpris")
+        total_cost = self.calculator.calculate_total_for_column(rows, "Kostnad")
 
         now = datetime.now()
         time_and_date_now = now.strftime("%H:%M %d/%-m")
@@ -52,14 +43,10 @@ class PASPageTask(Task):
                 "rich_text": [
                     {
                         "type": "text",
-                        "text": {"content": "Sålt för totalt: "},
+                        "text": {"content": "Mina audiophile saker. Total kostnad: "},
                         "annotations": {"bold": True},
                     },
-                    {
-                        "type": "text",
-                        "text": {"content": f"{total_sum}kr"},
-                        "annotations": {"bold": False},
-                    },
+                    {"type": "text", "text": {"content": f"{total_cost}kr"}},
                     {
                         "type": "text",
                         "text": {
@@ -79,7 +66,7 @@ class PASPageTask(Task):
         success = response.status_code == 200
 
         log.info(
-            "✅ Updated Prylar Att Sälja page!"
+            "✅ Updated Audiophile page!"
             if success
-            else "❌ Failed to update Prylar Att Sälja."
+            else "❌ Failed to update Audiophile."
         )

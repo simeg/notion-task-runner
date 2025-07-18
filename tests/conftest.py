@@ -14,7 +14,7 @@ def calculator():
   # to ensure it behaves like the real one, but can be mocked in tests.
   # This allows us to assert things like assert_called_once_with() on it.
   sum_calculator = SumCalculator()
-  real_method = sum_calculator.calculate
+  real_method = sum_calculator.calculate_total_for_column
   calculator = MagicMock(spec=SumCalculator)
   calculator.calculate = MagicMock(side_effect=real_method)
   return calculator

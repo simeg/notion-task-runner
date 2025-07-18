@@ -141,7 +141,7 @@ class StatsFetcher:
         for ct in CableType:
             if ct.value.lower() in value:
                 return ct
-        log.warning(f"Unknown cable type: {value}, defaulting to OTHER")
+        log.debug(f"Unknown cable type: {value}, defaulting to OTHER")
         return CableType.OTHER
 
     def _parse_adapters(self, rows: list[dict[Any, Any]]) -> list[Adapter]:

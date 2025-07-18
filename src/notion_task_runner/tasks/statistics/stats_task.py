@@ -78,7 +78,7 @@ class StatsTask(Task):
                 except Exception as e:
                     log.error(f"Error updating row: {e}")
 
-        log.info("✅ Updated Stats database with new values.")
+        log.info("✅ Updated Stats database with new values!")
 
     @staticmethod
     def _get_row_and_title(database_id: str, token: str) -> list[RowIdAndTitle]:
