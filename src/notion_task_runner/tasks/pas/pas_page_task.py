@@ -41,7 +41,7 @@ class PASPageTask(Task):
 
     def run(self) -> None:
         rows = self.db.fetch_rows(self.DATABASE_ID)
-        total_sum = self.calculator.calculate_total_for_column(rows, "Slutpris")
+        total_sum = self.calculator.calculate_total_for_column(rows)
 
         now = datetime.now()
         time_and_date_now = now.strftime("%H:%M %d/%-m")

@@ -11,7 +11,7 @@ class SumCalculator:
 
     @staticmethod
     def calculate_total_for_column(
-        rows: list[dict[str, Any]], column_name: str
+        rows: list[dict[str, Any]], column_name: str = "Slutpris"
     ) -> float:
         total = 0
         for item in rows:

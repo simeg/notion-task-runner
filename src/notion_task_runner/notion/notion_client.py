@@ -59,9 +59,15 @@ class NotionClient:
         stream: bool = False,
     ) -> requests.Response:
         session = self._get_thread_local_session()
-        response = session.request(
-            method, url, headers=headers, data=data, json=json, stream=stream
-        )
+        http_method = getattr(session, method.lower())
+        kwargs = {"headers": headers}
+        if method.upper() == "POST" or data is not None:
+            kwargs["data"] = data
+        if json is not None:
+            kwargs["json"] = json
+        if stream:
+            kwargs["stream"] = stream
+        response = http_method(url, **kwargs)
 
         if not response.ok:
             log.error(f"HTTP Error: {response.status_code} {response.text}")

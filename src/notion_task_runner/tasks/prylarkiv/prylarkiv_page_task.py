@@ -42,9 +42,6 @@ class PrylarkivPageTask(Task):
         rows = self.db.fetch_rows(self.DATABASE_ID)
         next_pryl_number = int(len(rows) + 1)
 
-        now = datetime.now()
-        time_and_date_now = now.strftime("%H:%M %d/%-m")
-
         url = f"https://api.notion.com/v1/blocks/{self.block_id}"
         data = {
             "callout": {
@@ -58,13 +55,6 @@ class PrylarkivPageTask(Task):
                         "type": "text",
                         "text": {"content": f"{next_pryl_number}"},
                         "annotations": {"code": True},
-                    },
-                    {
-                        "type": "text",
-                        "text": {
-                            "content": " (Senast uppdaterad: " + time_and_date_now + ")"
-                        },
-                        "annotations": {"italic": True, "color": "gray"},
                     },
                 ]
             }

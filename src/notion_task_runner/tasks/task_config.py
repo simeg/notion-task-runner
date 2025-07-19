@@ -43,7 +43,7 @@ class TaskConfig:
 
     @staticmethod
     def from_env(external_log: Logger = get_logger(__name__)) -> "TaskConfig":
-        is_prod = get_or_raise(external_log, "IS_PROD").lower() == "true"
+        is_prod = os.getenv("IS_PROD", "false").lower() == "true"
 
         notion_space_id = get_or_raise(external_log, "NOTION_SPACE_ID")
         notion_token_v2 = get_or_raise(external_log, "NOTION_TOKEN_V2")
