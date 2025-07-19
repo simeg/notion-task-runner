@@ -10,20 +10,18 @@ from notion_task_runner.tasks.pas.sum_calculator import SumCalculator
 
 @pytest.fixture
 def calculator():
-  # Create a mock calculator that uses the real SumCalculator method
-  # to ensure it behaves like the real one, but can be mocked in tests.
-  # This allows us to assert things like assert_called_once_with() on it.
-  sum_calculator = SumCalculator()
-  real_method = sum_calculator.calculate_total_for_column
+  real = SumCalculator()
   calculator = MagicMock(spec=SumCalculator)
-  calculator.calculate = MagicMock(side_effect=real_method)
+  def _side_effect(rows, column_name="Slutpris"):
+      return real.calculate_total_for_column(rows, column_name)
+  calculator.calculate_total_for_column = MagicMock(side_effect=_side_effect)
   return calculator
 
 
 @pytest.fixture
 def mock_calculator_30():
-  calculator = MagicMock()
-  calculator.calculate.return_value = 30
+  calculator = MagicMock(spec=SumCalculator)
+  calculator.calculate_total_for_column.return_value = 30
   return calculator
 
 
