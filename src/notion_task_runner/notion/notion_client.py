@@ -18,7 +18,8 @@ class NotionClient:
     automatically handling session setup and header configuration.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, session: object = None) -> None:
+        self.session = session
         self._thread_local = threading.local()
 
     def post(

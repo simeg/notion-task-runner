@@ -59,5 +59,5 @@ class TaskRunner:
 
 if __name__ == "__main__":
     task_config = TaskConfig.from_env()
-    app = TaskRunner(NotionClient(), task_config)
+    app = TaskRunner(client=NotionClient(), config=task_config)
     app.run()

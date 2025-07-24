@@ -5,7 +5,6 @@ How to find Database ID:
 3. Get the ID from the URL, it should be a 32-character string.
 4. Convert it here to get the UUID format
 """
-from notion_task_runner.logger import get_logger
 
 """
 How to find Block ID:

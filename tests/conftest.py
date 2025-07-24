@@ -16,14 +16,14 @@ def calculator():
   sum_calculator = SumCalculator()
   real_method = sum_calculator.calculate_total_for_column
   calculator = MagicMock(spec=SumCalculator)
-  calculator.calculate = MagicMock(side_effect=real_method)
+  calculator.calculate_total_for_column = MagicMock(side_effect=real_method)
   return calculator
 
 
 @pytest.fixture
 def mock_calculator_30():
   calculator = MagicMock()
-  calculator.calculate.return_value = 30
+  calculator.calculate_total_for_column.return_value = 30
   return calculator
 
 

@@ -36,7 +36,7 @@ def test_pas_page_task_with_empty_database(mock_notion_client_200, mock_config, 
     sut.run()
 
     mock_db_empty_list.fetch_rows.assert_called_once()
-    calculator.calculate_total_for_column.assert_called_once_with([])
+    calculator.calculate_total_for_column.assert_called_once_with([], "Slutpris")
     mock_notion_client_200.patch.assert_called_once()
 
     args, kwargs = mock_notion_client_200.patch.call_args
@@ -56,7 +56,7 @@ def test_pas_page_task_handles_client_error(caplog, mock_notion_client_400, mock
         sut.run()
 
     mock_db_w_props.fetch_rows.assert_called_once()
-    mock_calculator_30.calculate_total_for_column.assert_called_once_with([{'properties': {'Slutpris': {'number': 10}}}, {'properties': {'Slutpris': {'number': 20}}}])
+    mock_calculator_30.calculate_total_for_column.assert_called_once_with([{'properties': {'Slutpris': {'number': 10}}}, {'properties': {'Slutpris': {'number': 20}}}], "Slutpris")
     mock_notion_client_400.patch.assert_called_once()
 
     assert "❌ Failed to update Prylar Att Sälja." in caplog.text

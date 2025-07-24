@@ -13,9 +13,9 @@ class SumCalculator:
     def calculate_total_for_column(
         rows: list[dict[str, Any]], column_name: str
     ) -> float:
-        total = 0
-        for item in rows:
-            price = item["properties"].get(column_name, {}).get("number")
-            if price is not None:
-                total += price
-        return int(total)
+        def extract_number(item: dict[str, Any]) -> Any:
+            return item["properties"].get(column_name, {}).get("number")
+
+        numbers = map(extract_number, rows)
+        filtered_numbers = filter(lambda x: x is not None, numbers)
+        return int(sum(filtered_numbers))
