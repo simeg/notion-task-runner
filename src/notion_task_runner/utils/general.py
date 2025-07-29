@@ -1,7 +1,7 @@
 """
-Utility functions used across the Notion Task Runner project.
+General utility functions used across the Notion Task Runner project.
 
-This module is intended to house reusable helpers that encapsulate common patterns,
+This module houses reusable helpers that encapsulate common patterns,
 such as logging and error handling, to promote consistency and reduce duplication.
 """
 
@@ -10,6 +10,7 @@ from logging import Logger
 
 
 def fail(log: Logger, message: str) -> None:
+    """Log an error message and exit the application."""
     log.error(message)
     exit(1)
 
@@ -18,9 +19,15 @@ def get_or_raise(log: Logger, key: str) -> str:
     """
     Retrieves the value of a configuration key or fails if not set.
 
-    :param key: The environment variable key to retrieve.
-    :param log: The logger to use for logging errors.
-    :return: The value of the environment variable.
+    Args:
+        key: The environment variable key to retrieve.
+        log: The logger to use for logging errors.
+
+    Returns:
+        The value of the environment variable.
+
+    Raises:
+        SystemExit: If the environment variable is not set.
     """
     value = os.getenv(key)
     if not value:

@@ -2,8 +2,8 @@ from pathlib import Path
 
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-from notion_task_runner.logger import get_logger
-from notion_task_runner.notion import NotionClient
+from notion_task_runner.logging import get_logger
+from notion_task_runner.notion.async_notion_client import AsyncNotionClient
 
 log = get_logger(__name__)
 
@@ -21,7 +21,7 @@ class ExportFileDownloader:
 
     def __init__(
         self,
-        client: NotionClient,
+        client: AsyncNotionClient,
         max_retries: int = DEFAULT_MAX_RETRIES,
         retry_wait_seconds: int = DEFAULT_RETRY_WAIT_SECONDS,
     ) -> None:
@@ -29,9 +29,9 @@ class ExportFileDownloader:
         self.max_retries = max_retries
         self.retry_wait_seconds = retry_wait_seconds
 
-    def download_and_verify(self, url: str, path: Path) -> Path | None:
+    async def download_and_verify(self, url: str, path: Path) -> Path | None:
         log.info(f"Downloading file to: {path}")
-        downloaded = self._download_file(url, path)
+        downloaded = await self._download_file(url, path)
 
         if not downloaded or not downloaded.is_file():
             log.info("Could not download file")
@@ -39,22 +39,22 @@ class ExportFileDownloader:
 
         return downloaded
 
-    def _download_file(self, url: str, download_path: Path) -> Path | None:
+    async def _download_file(self, url: str, download_path: Path) -> Path | None:
         @retry(
             stop=stop_after_attempt(self.max_retries),
             wait=wait_fixed(self.retry_wait_seconds),
         )
-        def _do_download() -> Path:
-            response = self.client.get(url, stream=True)
+        async def _do_download() -> Path:
+            response = await self.client.get(url)
 
             with open(download_path, "wb") as f:
-                for chunk in response.iter_content(chunk_size=8192):
+                async for chunk in response.content.iter_chunked(8192):
                     f.write(chunk)
 
             return download_path
 
         try:
-            return _do_download()
+            return await _do_download()
         except Exception as e:
             log.warning("Download failed after retries: %s", e)
             return None

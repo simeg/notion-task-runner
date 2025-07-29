@@ -4,7 +4,7 @@ from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
-from notion_task_runner.logger import get_logger
+from notion_task_runner.logging import get_logger
 
 log = get_logger(__name__)
 

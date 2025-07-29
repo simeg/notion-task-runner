@@ -1,72 +1,47 @@
-from datetime import datetime
-from typing import Any
-
-from notion_task_runner.logger import get_logger
-from notion_task_runner.task import Task
+from notion_task_runner.notion import NotionDatabase
+from notion_task_runner.notion.async_notion_client import AsyncNotionClient
+from notion_task_runner.tasks.base_page_task import NotionPageUpdateTask
 from notion_task_runner.tasks.pas.sum_calculator import SumCalculator
 from notion_task_runner.tasks.task_config import TaskConfig
 
-log = get_logger(__name__)
 
+class AudiophilePageTask(NotionPageUpdateTask):
+    """
+    Task that updates the Audiophile Notion page with the total cost of equipment.
 
-class AudiophilePageTask(Task):
+    This task retrieves all entries from the audiophile equipment database,
+    calculates the total cost using the provided SumCalculator, and updates
+    a specific callout block in the Notion page with the result.
+
+    Attributes:
+        CALLOUT_BLOCK_ID (str): Default ID of the callout block to update.
+        DATABASE_ID (str): ID of the Notion database containing audiophile equipment.
+    """
 
     CALLOUT_BLOCK_ID = "233aa18d-640d-80e4-a9d9-e7026992d380"
     DATABASE_ID = "233aa18d-640d-80a9-9b0b-e9a0383c906c"
 
     def __init__(
         self,
-        client: Any,
-        db: Any,
+        client: AsyncNotionClient,
+        db: NotionDatabase,
         config: TaskConfig,
         calculator: SumCalculator,
         block_id: str | None = None,
     ):
-        from notion_task_runner.notion import NotionClient, NotionDatabase
+        super().__init__(client, db, config, calculator, block_id)
 
-        self.client: NotionClient = client
-        self.db: NotionDatabase = db
-        self.config = config
-        self.calculator: SumCalculator = calculator
-        self.block_id: str = block_id or self.CALLOUT_BLOCK_ID
+    def get_default_block_id(self) -> str:
+        return self.CALLOUT_BLOCK_ID
 
-    def run(self) -> None:
-        rows = self.db.fetch_rows(self.DATABASE_ID)
-        total_cost = self.calculator.calculate_total_for_column(rows, "Kostnad")
+    def get_database_id(self) -> str:
+        return self.DATABASE_ID
 
-        now = datetime.now()
-        time_and_date_now = now.strftime("%H:%M %d/%-m")
+    def get_column_name(self) -> str:
+        return "Kostnad"
 
-        url = f"https://api.notion.com/v1/blocks/{self.block_id}"
-        data = {
-            "callout": {
-                "rich_text": [
-                    {
-                        "type": "text",
-                        "text": {"content": "Mina audiophile saker. Total kostnad: "},
-                        "annotations": {"bold": True},
-                    },
-                    {"type": "text", "text": {"content": f"{total_cost}kr"}},
-                    {
-                        "type": "text",
-                        "text": {
-                            "content": " (Senast uppdaterad: " + time_and_date_now + ")"
-                        },
-                        "annotations": {"italic": True, "color": "gray"},
-                    },
-                ]
-            }
-        }
-        headers: dict[str, str] = {
-            "Authorization": f"Bearer {self.config.notion_api_key}",
-            "Notion-Version": "2022-06-28",
-            "Content-Type": "application/json",
-        }
-        response = self.client.patch(url, json=data, headers=headers)
-        success = response.status_code == 200
+    def get_display_text(self, total_value: float) -> str:
+        return "Mina audiophile saker. Total kostnad: "
 
-        log.info(
-            "✅ Updated Audiophile page!"
-            if success
-            else "❌ Failed to update Audiophile."
-        )
+    def get_task_name(self) -> str:
+        return "Audiophile Page Task"

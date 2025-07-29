@@ -1,15 +1,11 @@
-from datetime import datetime
-
-from notion_task_runner.logger import get_logger
-from notion_task_runner.notion import NotionClient, NotionDatabase
-from notion_task_runner.task import Task
+from notion_task_runner.notion import NotionDatabase
+from notion_task_runner.notion.async_notion_client import AsyncNotionClient
+from notion_task_runner.tasks.base_page_task import NotionPageUpdateTask
 from notion_task_runner.tasks.pas.sum_calculator import SumCalculator
 from notion_task_runner.tasks.task_config import TaskConfig
 
-log = get_logger(__name__)
 
-
-class PASPageTask(Task):
+class PASPageTask(NotionPageUpdateTask):
     """
     Task that updates the 'Prylar att sälja' Notion page with the total sum of sold items.
 
@@ -27,59 +23,25 @@ class PASPageTask(Task):
 
     def __init__(
         self,
-        client: NotionClient,
+        client: AsyncNotionClient,
         db: NotionDatabase,
         config: TaskConfig,
         calculator: SumCalculator,
         block_id: str | None = None,
     ):
-        self.client = client
-        self.db = db
-        self.config = config
-        self.calculator = calculator
-        self.block_id = block_id or self.BLOCK_ID
+        super().__init__(client, db, config, calculator, block_id)
 
-    def run(self) -> None:
-        rows = self.db.fetch_rows(self.DATABASE_ID)
-        total_sum = self.calculator.calculate_total_for_column(rows, "Slutpris")
+    def get_default_block_id(self) -> str:
+        return self.BLOCK_ID
 
-        now = datetime.now()
-        time_and_date_now = now.strftime("%H:%M %d/%-m")
+    def get_database_id(self) -> str:
+        return self.DATABASE_ID
 
-        url = f"https://api.notion.com/v1/blocks/{self.block_id}"
-        data = {
-            "callout": {
-                "rich_text": [
-                    {
-                        "type": "text",
-                        "text": {"content": "Sålt för totalt: "},
-                        "annotations": {"bold": True},
-                    },
-                    {
-                        "type": "text",
-                        "text": {"content": f"{total_sum}kr"},
-                        "annotations": {"bold": False},
-                    },
-                    {
-                        "type": "text",
-                        "text": {
-                            "content": " (Senast uppdaterad: " + time_and_date_now + ")"
-                        },
-                        "annotations": {"italic": True, "color": "gray"},
-                    },
-                ]
-            }
-        }
-        headers: dict[str, str] = {
-            "Authorization": f"Bearer {self.config.notion_api_key}",
-            "Notion-Version": "2022-06-28",
-            "Content-Type": "application/json",
-        }
-        response = self.client.patch(url, json=data, headers=headers)
-        success = response.status_code == 200
+    def get_column_name(self) -> str:
+        return "Slutpris"
 
-        log.info(
-            "✅ Updated Prylar Att Sälja page!"
-            if success
-            else "❌ Failed to update Prylar Att Sälja."
-        )
+    def get_display_text(self, total_value: float) -> str:
+        return "Sålt för totalt: "
+
+    def get_task_name(self) -> str:
+        return "PAS Page Task"

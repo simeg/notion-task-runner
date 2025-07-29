@@ -2,8 +2,8 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from notion_task_runner.logger import get_logger
-from notion_task_runner.notion import NotionClient
+from notion_task_runner.logging import get_logger
+from notion_task_runner.notion.async_notion_client import AsyncNotionClient
 from notion_task_runner.task import Task
 from notion_task_runner.tasks.download_export.export_file_downloader import (
     ExportFileDownloader,
@@ -34,24 +34,26 @@ class ExportFileTask(Task):
     EXPORT_FILE_NAME = "notion-backup"
     EXPORT_FILE_EXTENSION = ".zip"
 
-    def __init__(self, client: NotionClient, config: TaskConfig) -> None:
+    def __init__(self, client: AsyncNotionClient, config: TaskConfig) -> None:
         self.client = client
         self.config = config
         self.trigger = ExportFileTrigger(client, config)
         self.poller = ExportFilePoller(client, config)
         self.downloader = ExportFileDownloader(client)
 
-    def run(self) -> Path | None:
+    async def run(self) -> Path | None:
         try:
             export_trigger_timestamp = int(time.time() * 1000)
-            task_id = self.trigger.trigger_export_task()
+            task_id = await self.trigger.trigger_export_task()
             if not task_id:
                 log.error("Notion export task could not be queued")
                 return None
 
             log.info("Notion export task queued successfully")
 
-            download_url = self.poller.poll_for_download_url(export_trigger_timestamp)
+            download_url = await self.poller.poll_for_download_url(
+                export_trigger_timestamp
+            )
 
             if not download_url:
                 log.error("Notion download link could not be polled")
@@ -61,7 +63,7 @@ class ExportFileTask(Task):
             file_name = f"{self.EXPORT_FILE_NAME}-{self.config.export_type}{'-flattened' if self.config.flatten_export_file_tree else ''}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}{self.EXPORT_FILE_EXTENSION}"
             download_path = Path(self.config.downloads_directory_path) / file_name
 
-            downloaded_file = self.downloader.download_and_verify(
+            downloaded_file = await self.downloader.download_and_verify(
                 download_url, download_path
             )
             if not downloaded_file:

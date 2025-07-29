@@ -3,8 +3,8 @@ from typing import Any
 
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-from notion_task_runner.logger import get_logger
-from notion_task_runner.notion import NotionClient
+from notion_task_runner.logging import get_logger
+from notion_task_runner.notion.async_notion_client import AsyncNotionClient
 from notion_task_runner.tasks.task_config import TaskConfig
 
 log = get_logger(__name__)
@@ -42,7 +42,7 @@ class ExportFilePoller:
 
     def __init__(
         self,
-        client: NotionClient,
+        client: AsyncNotionClient,
         config: TaskConfig,
         max_retries: int = DEFAULT_MAX_RETRIES,
         retry_wait_seconds: int = DEFAULT_RETRY_WAIT_SECONDS,
@@ -52,14 +52,14 @@ class ExportFilePoller:
         self.DEFAULT_MAX_RETRIES = max_retries
         self.DEFAULT_RETRY_WAIT_SECONDS = retry_wait_seconds
 
-    def poll_for_download_url(self, export_trigger_timestamp: int) -> str | None:
+    async def poll_for_download_url(self, export_trigger_timestamp: int) -> str | None:
         @retry(
             stop=stop_after_attempt(self.DEFAULT_MAX_RETRIES),
             wait=wait_fixed(self.DEFAULT_RETRY_WAIT_SECONDS),
         )
-        def _poll() -> str:
+        async def _poll() -> str:
             try:
-                return self._try_get_download_url(export_trigger_timestamp)
+                return await self._try_get_download_url(export_trigger_timestamp)
             except (
                 NoActivityError,
                 StaleExportError,
@@ -72,7 +72,7 @@ class ExportFilePoller:
                 log.error("Error polling download URL", exc_info=e)
                 raise
 
-        return _poll()
+        return await _poll()
 
     def _get_notification_json(self) -> str:
         return json.dumps(
@@ -112,9 +112,9 @@ class ExportFilePoller:
 
         return str(export_link)
 
-    def _try_get_download_url(self, export_trigger_timestamp: int) -> str:
+    async def _try_get_download_url(self, export_trigger_timestamp: int) -> str:
         headers = self._build_headers()
-        response = self.client.post(
+        response = await self.client.post(
             self.NOTIFICATION_ENDPOINT,
             headers=headers,
             data=self._get_notification_json(),

@@ -1,9 +1,10 @@
 import pytest
+import asyncio
 from unittest.mock import MagicMock, patch
 
 from notion_task_runner.task_runner import TaskRunner
 from notion_task_runner.tasks.task_config import TaskConfig
-from notion_task_runner.notion import NotionClient
+from notion_task_runner.notion.async_notion_client import AsyncNotionClient
 
 @pytest.fixture
 def mock_config():
@@ -11,45 +12,51 @@ def mock_config():
 
 @pytest.fixture
 def mock_client():
-    return MagicMock(spec=NotionClient)
+    return MagicMock(spec=AsyncNotionClient)
 
-@patch("notion_task_runner.task_runner.PrylarkivPageTask")
-@patch("notion_task_runner.task_runner.PASPageTask")
-def test_task_runner_runs_all_tasks(
-    mock_pas_task, mock_prylarkiv_task, mock_client, mock_config
-):
+@pytest.mark.asyncio
+async def test_task_runner_runs_all_tasks(mock_config):
+    from unittest.mock import AsyncMock
+    
     # Arrange
-    mock_pas_instance = MagicMock()
-    mock_prylarkiv_instance = MagicMock()
+    mock_task1 = MagicMock()
+    mock_task1.run = AsyncMock()
+    mock_task2 = MagicMock()
+    mock_task2.run = AsyncMock()
+    tasks = [mock_task1, mock_task2]
 
-    mock_pas_task.return_value = mock_pas_instance
-    mock_prylarkiv_task.return_value = mock_prylarkiv_instance
+    # Mock the config's validate_notion_connectivity method and is_prod attribute
+    mock_config.validate_notion_connectivity.return_value = True
+    mock_config.is_prod = False
 
     # Act
-    runner = TaskRunner(mock_client, mock_config)
-    runner.run()
+    runner = TaskRunner(tasks=tasks, config=mock_config)
+    await runner.run_async()
 
     # Assert
-    mock_pas_instance.run.assert_called_once()
-    mock_prylarkiv_instance.run.assert_called_once()
+    mock_task1.run.assert_called_once()
+    mock_task2.run.assert_called_once()
 
-@patch("notion_task_runner.task_runner.PrylarkivPageTask")
-@patch("notion_task_runner.task_runner.PASPageTask")
-def test_task_runner_handles_exceptions_gracefully(
-    mock_pas_task, mock_prylarkiv_task,  mock_client, mock_config
-):
+@pytest.mark.asyncio
+async def test_task_runner_handles_exceptions_gracefully(mock_config):
+    from unittest.mock import AsyncMock
+    
     # Arrange
-    mock_pas_instance = MagicMock()
-    mock_pas_instance.run.side_effect = Exception("PAS failed")
+    mock_task1 = MagicMock()
+    mock_task1.run = AsyncMock(side_effect=Exception("Task 1 failed"))
 
-    mock_prylarkiv_instance = MagicMock()
+    mock_task2 = MagicMock()
+    mock_task2.run = AsyncMock()
+    tasks = [mock_task1, mock_task2]
 
-    mock_pas_task.return_value = mock_pas_instance
-    mock_prylarkiv_task.return_value = mock_prylarkiv_instance
+    # Mock the config's validate_notion_connectivity method and is_prod attribute
+    mock_config.validate_notion_connectivity.return_value = True
+    mock_config.is_prod = False
 
     # Act
-    runner = TaskRunner(mock_client, mock_config)
-    runner.run()
+    runner = TaskRunner(tasks=tasks, config=mock_config)
+    await runner.run_async()
 
-    # Assert: remaining tasks still run
-    mock_prylarkiv_instance.run.assert_called_once()
+    # Assert: remaining tasks still run even if one fails
+    mock_task1.run.assert_called_once()
+    mock_task2.run.assert_called_once()

@@ -1,119 +1,160 @@
-# ruff: noqa: B008
-import os
-from dataclasses import dataclass
-from logging import Logger
-from pathlib import Path
-from typing import Literal, cast
+"""
+Type-safe configuration management using Pydantic.
 
-from notion_task_runner.logger import get_logger
-from notion_task_runner.utils import fail, get_or_raise
+Provides validated configuration loading from environment variables
+with clear error messages and automatic type conversion.
+"""
+
+from pathlib import Path
+from typing import Literal
+
+import requests
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from notion_task_runner.constants import (
+    DEFAULT_EXPORT_DIR,
+    NOTION_BASE_URL,
+    VALID_EXPORT_TYPES,
+    get_notion_headers,
+)
 
 # Valid export types for export tasks
-VALID_EXPORT_TYPES = ["markdown", "html"]
 ExportType = Literal["markdown", "html"]
 
-DEFAULT_EXPORT_DIR = "/tmp"
 
-
-@dataclass(frozen=True)  # Make the class immutable
-class TaskConfig:
+class TaskConfig(BaseSettings):
     """
-    Holds configuration for running Notion-related tasks, loaded from environment variables.
+    Type-safe configuration for Notion-related tasks.
 
-    This class provides configuration values for both exporting Notion data to disk and optionally uploading it
-    to Google Drive. It reads environment variables and validates required inputs, ensuring the export directory exists,
-    the export type is valid, and credentials are present.
+    This class automatically loads and validates configuration from environment
+    variables using Pydantic. It ensures all required fields are present and
+    validates their formats and constraints.
     """
 
-    notion_space_id: str | None
-    notion_token_v2: str | None
-    notion_api_key: str | None
-    # ================================
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    # Required Notion configuration
+    notion_space_id: str = Field(
+        ..., description="Notion workspace/space ID", min_length=1
+    )
+    notion_token_v2: str = Field(
+        ..., description="Notion v2 authentication token", min_length=1
+    )
+    notion_api_key: str = Field(
+        ..., description="Notion API key for external API access", min_length=1
+    )
+
     # Download Export Task Specific
-    # ================================
-    downloads_directory_path: Path
-    export_type: ExportType
-    flatten_export_file_tree: bool
-    # ================================
+    downloads_directory_path: Path = Field(
+        default=Path(DEFAULT_EXPORT_DIR),
+        description="Directory path for downloaded exports",
+    )
+    export_type: ExportType = Field(
+        default="markdown", description="Export format type"
+    )
+    flatten_export_file_tree: bool = Field(
+        default=False, description="Whether to flatten the export file structure"
+    )
+
     # Google Drive Upload Task Specific
-    # ================================
-    google_drive_service_account_secret_json: str | None = None
-    google_drive_root_folder_id: str | None = None
-    is_prod: bool = False
+    google_drive_service_account_secret_json: str = Field(
+        ..., description="Google Drive service account JSON credentials", min_length=1
+    )
+    google_drive_root_folder_id: str = Field(
+        ..., description="Google Drive root folder ID for uploads", min_length=1
+    )
 
-    @staticmethod
-    def from_env(external_log: Logger = get_logger(__name__)) -> "TaskConfig":
-        is_prod = get_or_raise(external_log, "IS_PROD").lower() == "true"
+    # Global Configuration
+    is_prod: bool = Field(default=False, description="Production mode flag")
 
-        notion_space_id = get_or_raise(external_log, "NOTION_SPACE_ID")
-        notion_token_v2 = get_or_raise(external_log, "NOTION_TOKEN_V2")
-        notion_api_key = get_or_raise(external_log, "NOTION_API_KEY")
+    @field_validator("notion_api_key")
+    @classmethod
+    def validate_notion_api_key(cls, v: str) -> str:
+        """Validate that Notion API key is not empty."""
+        if not v.strip():
+            raise ValueError("Notion API key cannot be empty")
+        return v
 
-        (
-            downloads_dir_path,
-            export_type,
-            flatten_export_file_tree,
-            downloads_directory,
-        ) = TaskConfig._config_download_export_task(external_log)
+    @field_validator("export_type")
+    @classmethod
+    def validate_export_type(cls, v: str) -> str:
+        """Validate that export type is supported."""
+        if v not in VALID_EXPORT_TYPES:
+            raise ValueError(
+                f"Invalid export type: {v}. Must be one of {', '.join(VALID_EXPORT_TYPES)}"
+            )
+        return v
 
-        google_drive_service_account_secret_json = get_or_raise(
-            external_log, "GOOGLE_DRIVE_SERVICE_ACCOUNT_SECRET_JSON"
-        )
-        google_drive_root_folder_id = get_or_raise(
-            external_log, "GOOGLE_DRIVE_ROOT_FOLDER_ID"
-        )
+    @field_validator("downloads_directory_path")
+    @classmethod
+    def validate_downloads_directory(cls, v: Path) -> Path:
+        """Ensure downloads directory exists."""
+        resolved_path = v.resolve()
+        resolved_path.mkdir(parents=True, exist_ok=True)
+        return resolved_path
 
-        return TaskConfig(
-            # ================================
-            # Notion Task Specific
-            # ================================
-            notion_space_id=notion_space_id,
-            notion_token_v2=notion_token_v2,
-            notion_api_key=notion_api_key,
-            # ================================
-            # Download Export Task Specific
-            # ================================
-            downloads_directory_path=downloads_dir_path,
-            export_type=export_type,
-            flatten_export_file_tree=flatten_export_file_tree,
-            # ================================
-            # Google Drive Upload Task Specific
-            # ================================
-            google_drive_service_account_secret_json=google_drive_service_account_secret_json,
-            google_drive_root_folder_id=google_drive_root_folder_id,
-            # ================================
-            # Global Config
-            # ================================
-            is_prod=is_prod,
-        )
+    @property
+    def notion_headers(self) -> dict[str, str]:
+        """Get Notion API headers for this configuration."""
+        return get_notion_headers(self.notion_api_key)
 
-    @staticmethod
-    def _config_download_export_task(
-        external_log: Logger = get_logger(__name__),
-    ) -> tuple[Path, ExportType, bool, Path]:
-        downloads_directory = Path(
-            os.getenv("DOWNLOADS_DIRECTORY_PATH") or DEFAULT_EXPORT_DIR
-        )
-        export_type = os.getenv("EXPORT_TYPE", "markdown")
-        flatten_export_file_tree = (
-            os.getenv("FLATTEN_EXPORT_FILE_TREE", "False").lower() == "true"
-        )
+    def validate_notion_connectivity(self) -> bool:
+        """
+        Validate that the Notion API credentials work by making a simple API call.
 
-        if export_type not in VALID_EXPORT_TYPES:
-            fail(
-                external_log,
-                f"Invalid export type: {export_type}. Must be one of {', '.join(VALID_EXPORT_TYPES)}",
+        Returns:
+            bool: True if credentials are valid and API is accessible
+        """
+        try:
+            # Simple API call to check if credentials work
+            response = requests.get(
+                f"{NOTION_BASE_URL}/users/me", headers=self.notion_headers, timeout=10
             )
 
-        export_type = cast(ExportType, export_type)
+            return response.status_code == 200
 
-        # Ensure the downloads directory exists
-        downloads_dir_path = Path(downloads_directory).resolve()
-        downloads_dir_path.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            return False
 
-        return (
-            downloads_dir_path,
-            export_type,
-            flatten_export_file_tree,
-            downloads_directory,
-        )
+    @classmethod
+    def from_env(cls) -> "TaskConfig":
+        """
+        Create TaskConfig from environment variables.
+
+        This method is kept for backward compatibility with existing code.
+        The Pydantic BaseSettings automatically loads from environment.
+        """
+        return cls()  # type: ignore[call-arg]
+
+    def model_dump_safe(self) -> dict[str, str]:
+        """
+        Dump model data with sensitive fields masked.
+
+        Returns configuration data suitable for logging or debugging
+        with API keys and tokens masked for security.
+        """
+        data = self.model_dump()
+
+        # Mask sensitive fields
+        sensitive_fields = [
+            "notion_token_v2",
+            "notion_api_key",
+            "google_drive_service_account_secret_json",
+        ]
+
+        for field in sensitive_fields:
+            if data.get(field):
+                # Show first 8 and last 4 characters with masking
+                value = str(data[field])
+                if len(value) > 12:
+                    data[field] = f"{value[:8]}...{value[-4:]}"
+                else:
+                    data[field] = "***masked***"
+
+        return data

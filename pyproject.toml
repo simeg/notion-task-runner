@@ -8,6 +8,7 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "aiohttp (>=3.10.0,<4.0.0)",
     "requests (>=2.32.4,<3.0.0)",
     "dotenv (>=0.9.9,<0.10.0)",
     "coloredlogs (>=15.0.1,<16.0.0)",
@@ -17,10 +18,18 @@ dependencies = [
     "google-auth-oauthlib (>=1.2.2,<2.0.0)",
     "logger (>=1.4,<2.0)",
     "tenacity (>=9.1.2,<10.0.0)",
+    "dependency-injector (>=4.42.0,<5.0.0)",
+    "structlog (>=23.1.0,<25.0.0)",
+    "typer[all] (>=0.15.0,<1.0.0)",
+    "pydantic (>=2.10.0,<3.0.0)",
+    "pydantic-settings (>=2.8.0,<3.0.0)",
 ]
 
 [tool.poetry]
 packages = [{include = "notion_task_runner", from = "src"}]
+
+[project.scripts]
+notion-task-runner = "notion_task_runner.cli:main_cli"
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"
@@ -30,6 +39,7 @@ isort = "^6.0.1"
 types-requests = "^2.32.4.20250611"
 pytest = "^8.4.0"
 pytest-cov = "^6.2.1"
+pytest-asyncio = "^0.24.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

@@ -1,6 +1,7 @@
 import os
 import pytest
 from unittest.mock import patch
+from pydantic import ValidationError
 
 from notion_task_runner.tasks.task_config import TaskConfig, DEFAULT_EXPORT_DIR
 
@@ -29,12 +30,32 @@ def test_task_config_from_env_valid(monkeypatch, tmp_path):
     assert config.flatten_export_file_tree is True
 
 
-@patch.dict(os.environ, {}, clear=True)
-def test_task_config_missing_required_env_vars():
-    with pytest.raises(SystemExit):
-        TaskConfig.from_env()
+def test_task_config_missing_required_env_vars(monkeypatch, tmp_path):
+    # Create an empty .env file to override the default one
+    env_file = tmp_path / ".env"
+    env_file.write_text("")
+    
+    # Change to temp directory so it loads the empty .env file
+    monkeypatch.chdir(tmp_path)
+    
+    # Explicitly remove all required environment variables
+    monkeypatch.delenv("NOTION_SPACE_ID", raising=False)
+    monkeypatch.delenv("NOTION_TOKEN_V2", raising=False)
+    monkeypatch.delenv("NOTION_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_DRIVE_SERVICE_ACCOUNT_SECRET_JSON", raising=False)
+    monkeypatch.delenv("GOOGLE_DRIVE_ROOT_FOLDER_ID", raising=False)
+    
+    with pytest.raises(ValidationError):
+        TaskConfig()
 
 
+@patch.dict(os.environ, {
+    "NOTION_SPACE_ID": "space-id",
+    "NOTION_TOKEN_V2": "token-v2", 
+    "NOTION_API_KEY": "api-key",
+    "GOOGLE_DRIVE_SERVICE_ACCOUNT_SECRET_JSON": '{"type": "service_account"}',
+    "GOOGLE_DRIVE_ROOT_FOLDER_ID": "root-folder-id",
+})
 def test_config_download_export_task_defaults(tmp_path, monkeypatch):
     monkeypatch.delenv("DOWNLOADS_DIRECTORY_PATH", raising=False)
     monkeypatch.delenv("EXPORT_TYPE", raising=False)
@@ -42,15 +63,21 @@ def test_config_download_export_task_defaults(tmp_path, monkeypatch):
 
     monkeypatch.chdir(tmp_path)
 
-    downloads_path, export_type, flatten, _ = TaskConfig._config_download_export_task()
+    config = TaskConfig()
 
-    assert downloads_path == (tmp_path / DEFAULT_EXPORT_DIR).resolve()
-    assert export_type == "markdown"
-    assert flatten is False
+    assert config.downloads_directory_path == (tmp_path / DEFAULT_EXPORT_DIR).resolve()
+    assert config.export_type == "markdown"
+    assert config.flatten_export_file_tree is False
 
 
-def test_config_download_export_task_invalid_export_type(monkeypatch):
-    monkeypatch.setenv("EXPORT_TYPE", "pdf")  # Invalid type
-
-    with pytest.raises(SystemExit):
-        TaskConfig._config_download_export_task()
+@patch.dict(os.environ, {
+    "NOTION_SPACE_ID": "space-id",
+    "NOTION_TOKEN_V2": "token-v2",
+    "NOTION_API_KEY": "api-key", 
+    "GOOGLE_DRIVE_SERVICE_ACCOUNT_SECRET_JSON": '{"type": "service_account"}',
+    "GOOGLE_DRIVE_ROOT_FOLDER_ID": "root-folder-id",
+    "EXPORT_TYPE": "pdf",  # Invalid type
+})
+def test_config_download_export_task_invalid_export_type():
+    with pytest.raises(ValidationError):
+        TaskConfig()

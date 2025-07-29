@@ -1,66 +1,35 @@
-import concurrent.futures
+import asyncio
 import re
 from dataclasses import dataclass
-from enum import Enum
 from functools import reduce
 from typing import Any
 
-from notion_task_runner.logger import get_logger
+from notion_task_runner.logging import get_logger
 from notion_task_runner.notion import NotionDatabase
-
-log = get_logger(__name__)
-
-
-@dataclass(frozen=True)
-class Watch:
-    name: str
-    cost: int
-    purchased_date: str
-
-
-class CableType(Enum):
-    HDMI = "HDMI"
-    USB_A = "USB-A"
-    USB_C = "USB-C"
-    AUDIO = "Audio"
-    ETHERNET = "Ethernet"
-    DISPLAY_PORT = "DisplayPort"
-    OTHER = "Other"
+from notion_task_runner.tasks.statistics.models import (
+    Adapter,
+    Cable,
+    CableType,
+    Pryl,
+    Vinyl,
+    Watch,
+    WorkspaceStats,
+)
 
 
 @dataclass(frozen=True)
-class Cable:
-    type: CableType
-    length_cm: int
+class DetailedWorkspaceStats:
+    """Detailed workspace statistics with individual item collections."""
 
-
-@dataclass(frozen=True)
-class Adapter:
-    type: str
-    length_cm: int
-
-
-@dataclass(frozen=True)
-class Pryl:
-    title: str
-    number: int
-
-
-@dataclass(frozen=True)
-class Vinyl:
-    artist: str
-    title: str
-    release_year: int
-
-
-@dataclass(frozen=True)
-class WorkspaceStats:
     watches: list[Watch]
     cables: list[Cable]
     adapters: list[Adapter]
     prylar: list[Pryl]
     vinyls: list[Vinyl]
     total_cable_length_m: float = 0.0
+
+
+log = get_logger(__name__)
 
 
 class StatsFetcher:
@@ -81,23 +50,24 @@ class StatsFetcher:
             return field["rich_text"][0]["plain_text"]
         return fallback
 
-    def fetch(self) -> WorkspaceStats:
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future_watches = executor.submit(self.db.fetch_rows, self.WATCHES_DB_ID)
-            future_cables = executor.submit(self.db.fetch_rows, self.CABLES_DB_ID)
-            future_prylar = executor.submit(self.db.fetch_rows, self.PRYLAR_DB_ID)
-            future_vinyls = executor.submit(self.db.fetch_rows, self.VINYLS_DB_ID)
+    async def fetch(self) -> DetailedWorkspaceStats:
+        # Fetch all data concurrently using asyncio
+        rows_watches, rows_cables, rows_prylar, rows_vinyls = await asyncio.gather(
+            self.db.fetch_rows(self.WATCHES_DB_ID),
+            self.db.fetch_rows(self.CABLES_DB_ID),
+            self.db.fetch_rows(self.PRYLAR_DB_ID),
+            self.db.fetch_rows(self.VINYLS_DB_ID),
+        )
 
-            watches = self._parse_watches(future_watches.result())
-            rows_cables = future_cables.result()
-            cables = self._parse_cables(rows_cables)
-            adapters = self._parse_adapters(rows_cables)
-            prylar = self._parse_prylar(future_prylar.result())
-            vinyls = self._parse_vinyls(future_vinyls.result())
+        watches = self._parse_watches(rows_watches)
+        cables = self._parse_cables(rows_cables)
+        adapters = self._parse_adapters(rows_cables)
+        prylar = self._parse_prylar(rows_prylar)
+        vinyls = self._parse_vinyls(rows_vinyls)
 
         total_cable_length_m = self._total_cable_length(cables)
 
-        return WorkspaceStats(
+        return DetailedWorkspaceStats(
             watches=watches,
             cables=cables,
             adapters=adapters,
@@ -106,13 +76,44 @@ class StatsFetcher:
             total_cable_length_m=total_cable_length_m,
         )
 
+    async def fetch_summary_stats(self) -> WorkspaceStats:
+        """Fetch aggregated workspace statistics."""
+        detailed_stats = await self.fetch()
+
+        total_watch_cost = sum(watch.cost for watch in detailed_stats.watches)
+        total_vinyl_cost = sum(vinyl.cost or 0 for vinyl in detailed_stats.vinyls)
+
+        return WorkspaceStats(
+            total_watches=len(detailed_stats.watches),
+            total_watch_cost=total_watch_cost,
+            total_cables=len(detailed_stats.cables),
+            total_adapters=len(detailed_stats.adapters),
+            total_prylar=len(detailed_stats.prylar),
+            total_vinyl_records=len(detailed_stats.vinyls),
+            total_vinyl_cost=total_vinyl_cost,
+        )
+
     def _parse_watches(self, rows: list[dict[Any, Any]]) -> list[Watch]:
         watches = []
         for row in rows:
             props = row["properties"]
             name = self._get_plain_text(props, "Name")
+            if not name or not name.strip():
+                log.warning(
+                    f"Skipping watch with empty name in row {row.get('id', 'unknown')}"
+                )
+                continue
+
             cost = props["Kostnad (SEK)"]["number"]
+            if cost is None:
+                log.warning(f"Skipping watch '{name}' with missing cost")
+                continue
+
             purchased_date = props["Köpt den"]["date"]["start"]
+            if not purchased_date:
+                log.warning(f"Skipping watch '{name}' with missing purchase date")
+                continue
+
             watches.append(Watch(name=name, cost=cost, purchased_date=purchased_date))
         return watches
 
@@ -122,14 +123,23 @@ class StatsFetcher:
             props = row["properties"]
             if props["is_adapter"]["checkbox"]:
                 continue
+
             raw_type = self._get_plain_text(props, "Type")
             if not raw_type:
-                log.warning("Missing type title in row, defaulting to OTHER")
+                log.warning(
+                    f"Missing cable type in row {row.get('id', 'unknown')}, defaulting to OTHER"
+                )
                 cable_type = CableType.OTHER
             else:
                 cable_type = self._parse_cable_type(raw_type)
 
             length = props["Length (cm)"]["number"]
+            if length is None or length <= 0:
+                log.warning(
+                    f"Skipping cable with invalid length: {length} in row {row.get('id', 'unknown')}"
+                )
+                continue
+
             cables.append(Cable(type=cable_type, length_cm=length))
         return cables
 
@@ -150,9 +160,22 @@ class StatsFetcher:
             props = row["properties"]
             if not props["is_adapter"]["checkbox"]:
                 continue
-            type = self._get_plain_text(props, "Type")
+
+            adapter_type = self._get_plain_text(props, "Type")
+            if not adapter_type or not adapter_type.strip():
+                log.warning(
+                    f"Skipping adapter with empty type in row {row.get('id', 'unknown')}"
+                )
+                continue
+
             length = props["Length (cm)"]["number"]
-            adapters.append(Adapter(type=type, length_cm=length))
+            if length is None or length < 0:
+                log.warning(
+                    f"Skipping adapter '{adapter_type}' with invalid length: {length}"
+                )
+                continue
+
+            adapters.append(Adapter(type=adapter_type, length_cm=length))
         return adapters
 
     def _parse_prylar(self, rows: list[dict[Any, Any]]) -> list[Pryl]:
@@ -182,10 +205,30 @@ class StatsFetcher:
             props = row["properties"]
 
             artist = self._get_plain_text(props, "Artist")
-            title = self._get_plain_text(props, "Titel")
-            year_str = int(self._get_plain_text(props, "År"))
+            if not artist or not artist.strip():
+                log.warning(
+                    f"Skipping vinyl with empty artist in row {row.get('id', 'unknown')}"
+                )
+                continue
 
-            vinyls.append(Vinyl(artist=artist, title=title, release_year=year_str))
+            title = self._get_plain_text(props, "Titel")
+            if not title or not title.strip():
+                log.warning(
+                    f"Skipping vinyl with empty title in row {row.get('id', 'unknown')}"
+                )
+                continue
+
+            year_raw = self._get_plain_text(props, "År")
+            try:
+                year_str = int(year_raw) if year_raw else None
+            except (ValueError, TypeError):
+                log.warning(
+                    f"Skipping vinyl '{artist} - {title}' with invalid year: {year_raw}"
+                )
+                continue
+
+            cost = props.get("Kostnad (SEK)", {}).get("number")
+            vinyls.append(Vinyl(artist=artist, title=title, year=year_str, cost=cost))
         return vinyls
 
     @staticmethod

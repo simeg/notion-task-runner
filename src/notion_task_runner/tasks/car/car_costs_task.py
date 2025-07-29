@@ -1,8 +1,11 @@
 from dataclasses import dataclass
-from typing import Any
 
-from notion_task_runner.logger import get_logger
-from notion_task_runner.notion import NotionClient, NotionDatabase
+import aiohttp
+
+from notion_task_runner.constants import get_notion_block_update_url, get_notion_headers
+from notion_task_runner.logging import get_logger
+from notion_task_runner.notion import NotionDatabase
+from notion_task_runner.notion.async_notion_client import AsyncNotionClient
 from notion_task_runner.task import Task
 from notion_task_runner.tasks.task_config import TaskConfig
 
@@ -26,7 +29,7 @@ class CarCostsTask(Task):
 
     def __init__(
         self,
-        client: NotionClient,
+        client: AsyncNotionClient,
         db: NotionDatabase,
         config: TaskConfig,
         block_id: str | None = None,
@@ -36,53 +39,86 @@ class CarCostsTask(Task):
         self.config = config
         self.block_id = block_id or self.UNPREDICTABLE_BLOCK_ID_2025
 
-    def run(self) -> None:
-        cost_data = {
-            2024: {"fixed": 0, "unpredictable": 0},
-            2025: {"fixed": 0, "unpredictable": 0},
-        }
+    async def run(self) -> None:
+        """
+        Execute the car costs update task.
 
-        for year in cost_data:
-            cost_data[year]["fixed"] = self._calculate_total_cost(
-                self.FAST_KOSTNADER_DB_ID, year
-            )
-            cost_data[year]["unpredictable"] = self._calculate_total_cost(
-                self.OFORUTSAGBARA_KOSTNADER_DB_ID, year
-            )
+        Calculates fixed and unpredictable costs for 2024 and 2025,
+        then updates the corresponding Notion page blocks.
+        """
+        try:
+            log.info("Starting Car Costs Task - calculating costs for 2024 and 2025")
 
-        block_map = [
-            (
-                self.UNPREDICTABLE_BLOCK_ID_2025,
-                "Oförutsägbara Kostnader",
-                cost_data[2025]["unpredictable"],
-            ),
-            (self.FIXED_BLOCK_ID_2025, "Fasta Kostnader", cost_data[2025]["fixed"]),
-            (
-                self.UNPREDICTABLE_BLOCK_ID_2024,
-                "Oförutsägbara Kostnader",
-                cost_data[2024]["unpredictable"],
-            ),
-            (self.FIXED_BLOCK_ID_2024, "Fasta Kostnader", cost_data[2024]["fixed"]),
-        ]
+            cost_data = {
+                2024: {"fixed": 0, "unpredictable": 0},
+                2025: {"fixed": 0, "unpredictable": 0},
+            }
 
-        responses = []
-        for block_id, key, cost in block_map:
-            response = self._update_callout(block_id, key, cost)
-            responses.append(response)
+            # Calculate costs for each year
+            for year in cost_data:
+                log.debug(f"Calculating costs for year {year}")
+                cost_data[year]["fixed"] = await self._calculate_total_cost(
+                    self.FAST_KOSTNADER_DB_ID, year
+                )
+                cost_data[year]["unpredictable"] = await self._calculate_total_cost(
+                    self.OFORUTSAGBARA_KOSTNADER_DB_ID, year
+                )
+                log.debug(
+                    f"Year {year}: Fixed={cost_data[year]['fixed']}, Unpredictable={cost_data[year]['unpredictable']}"
+                )
 
-        success = all(response.status_code == 200 for response in responses)
+            # Define blocks to update
+            block_map = [
+                (
+                    self.UNPREDICTABLE_BLOCK_ID_2025,
+                    "Oförutsägbara Kostnader",
+                    cost_data[2025]["unpredictable"],
+                ),
+                (self.FIXED_BLOCK_ID_2025, "Fasta Kostnader", cost_data[2025]["fixed"]),
+                (
+                    self.UNPREDICTABLE_BLOCK_ID_2024,
+                    "Oförutsägbara Kostnader",
+                    cost_data[2024]["unpredictable"],
+                ),
+                (self.FIXED_BLOCK_ID_2024, "Fasta Kostnader", cost_data[2024]["fixed"]),
+            ]
 
-        if not success:
-            log.error("Failed to update one or more blocks.")
-            for response in responses:
-                log.error(f"Response: {response.status_code} - {response.text}")
+            # Update all blocks
+            failed_updates = []
+            for block_id, key, cost in block_map:
+                try:
+                    log.debug(f"Updating block {block_id} with {key}: {cost}")
+                    await self._update_callout(block_id, key, cost)
+                except Exception as e:
+                    log.error(f"Failed to update block {block_id}: {e}")
+                    failed_updates.append((block_id, key, e))
 
-        log.info(
-            "✅ Updated Bil Kostnader!" if success else "❌ Failed to update Bil page."
-        )
+            if failed_updates:
+                error_msg = f"Failed to update {len(failed_updates)} block(s)"
+                log.error(error_msg)
+                for block_id, key, error in failed_updates:
+                    log.error(f"  - {key} ({block_id}): {error}")
+                raise RuntimeError(error_msg)
 
-    def _update_callout(self, block_id: str, key: str, cost: int) -> Any:
-        url = f"https://api.notion.com/v1/blocks/{block_id}"
+            log.info("✅ Car Costs Task completed successfully")
+
+        except Exception as e:
+            log.error(f"❌ Car Costs Task failed: {e}")
+            raise
+
+    async def _update_callout(self, block_id: str, key: str, cost: int) -> None:
+        """
+        Update a callout block with cost information.
+
+        Args:
+            block_id: The ID of the block to update
+            key: The display name for the cost type
+            cost: The cost value to display
+
+        Raises:
+            aiohttp.ClientError: If the API request fails
+        """
+        url = get_notion_block_update_url(block_id)
 
         data = {
             "callout": {
@@ -101,19 +137,21 @@ class CarCostsTask(Task):
             }
         }
 
-        headers: dict[str, str] = {
-            "Authorization": f"Bearer {self.config.notion_api_key}",
-            "Notion-Version": "2022-06-28",
-            "Content-Type": "application/json",
-        }
-        response = self.client.patch(url, json=data, headers=headers)
-        return response
+        headers = get_notion_headers(self.config.notion_api_key)
 
-    def _calculate_total_cost(self, db_id: str, year: int) -> int:
-        return sum(c.cost for c in self._fetch_costs(db_id, year))
+        try:
+            response = await self.client.patch(url, json=data, headers=headers)
+            response.raise_for_status()
+        except aiohttp.ClientError as e:
+            log.error(f"Failed to update callout block {block_id}: {e}")
+            raise
 
-    def _fetch_costs(self, db_id: str, year: int | None = -1) -> list[Cost]:
-        rows = self.db.fetch_rows(db_id)
+    async def _calculate_total_cost(self, db_id: str, year: int) -> int:
+        costs = await self._fetch_costs(db_id, year)
+        return sum(c.cost for c in costs)
+
+    async def _fetch_costs(self, db_id: str, year: int | None = -1) -> list[Cost]:
+        rows = await self.db.fetch_rows(db_id)
         cost_list = []
 
         for row in rows:

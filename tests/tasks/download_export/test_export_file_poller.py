@@ -25,8 +25,10 @@ def sut(mock_client, mock_config):
     return ExportFilePoller(client=mock_client, config=mock_config, max_retries=2, retry_wait_seconds=0)
 
 
-def test_poll_success(sut, mock_client):
-    mock_client.post.return_value = {
+@pytest.mark.asyncio
+async def test_poll_success(sut, mock_client):
+    from unittest.mock import AsyncMock
+    mock_client.post = AsyncMock(return_value={
         "recordMap": {
             "activity": {
                 "some_key": {
@@ -37,14 +39,16 @@ def test_poll_success(sut, mock_client):
                 }
             }
         }
-    }
+    })
 
-    url = sut.poll_for_download_url(export_trigger_timestamp=99)
+    url = await sut.poll_for_download_url(export_trigger_timestamp=99)
     assert url == "https://notion.so/download"
 
 
-def test_poll_stale_export(sut, mock_client):
-    mock_client.post.return_value = {
+@pytest.mark.asyncio
+async def test_poll_stale_export(sut, mock_client):
+    from unittest.mock import AsyncMock
+    mock_client.post = AsyncMock(return_value={
         "recordMap": {
             "activity": {
                 "some_key": {
@@ -55,16 +59,18 @@ def test_poll_stale_export(sut, mock_client):
                 }
             }
         }
-    }
+    })
 
     with pytest.raises(tenacity.RetryError) as exc_info:
-        sut.poll_for_download_url(export_trigger_timestamp=99)
+        await sut.poll_for_download_url(export_trigger_timestamp=99)
 
     assert isinstance(exc_info.value.last_attempt.exception(), StaleExportError)
 
 
-def test_poll_missing_link(sut, mock_client):
-    mock_client.post.return_value = {
+@pytest.mark.asyncio
+async def test_poll_missing_link(sut, mock_client):
+    from unittest.mock import AsyncMock
+    mock_client.post = AsyncMock(return_value={
         "recordMap": {
             "activity": {
                 "some_key": {
@@ -75,41 +81,47 @@ def test_poll_missing_link(sut, mock_client):
                 }
             }
         }
-    }
+    })
 
     with pytest.raises(tenacity.RetryError) as exc_info:
-        sut.poll_for_download_url(export_trigger_timestamp=99)
+        await sut.poll_for_download_url(export_trigger_timestamp=99)
 
     assert isinstance(exc_info.value.last_attempt.exception(), MissingExportLinkError)
 
 
-def test_poll_no_activity(sut, mock_client):
-    mock_client.post.return_value = {
+@pytest.mark.asyncio
+async def test_poll_no_activity(sut, mock_client):
+    from unittest.mock import AsyncMock
+    mock_client.post = AsyncMock(return_value={
         "recordMap": {}
-    }
+    })
 
     with pytest.raises(tenacity.RetryError) as exc_info:
-        sut.poll_for_download_url(export_trigger_timestamp=99)
+        await sut.poll_for_download_url(export_trigger_timestamp=99)
 
     assert isinstance(exc_info.value.last_attempt.exception(), NoActivityError)
 
-def test_poll_malformed_response(sut, mock_client):
-    mock_client.post.return_value = {}
+@pytest.mark.asyncio
+async def test_poll_malformed_response(sut, mock_client):
+    from unittest.mock import AsyncMock
+    mock_client.post = AsyncMock(return_value={})
 
     with pytest.raises(tenacity.RetryError) as exc_info:
-        sut.poll_for_download_url(export_trigger_timestamp=99)
+        await sut.poll_for_download_url(export_trigger_timestamp=99)
 
     assert isinstance(exc_info.value.last_attempt.exception(), NoActivityError)
 
 
-def test_poll_retries_on_no_activity(mock_client, mock_config):
+@pytest.mark.asyncio
+async def test_poll_retries_on_no_activity(mock_client, mock_config):
+    from unittest.mock import AsyncMock
     sut = ExportFilePoller(client=mock_client, config=mock_config, max_retries=3, retry_wait_seconds=0)
 
     # Simulate NoActivityError for each retry attempt
-    mock_client.post.side_effect = [{}] * 3  # Causes NoActivityError each time
+    mock_client.post = AsyncMock(side_effect=[{}] * 3)  # Causes NoActivityError each time
 
     with pytest.raises(tenacity.RetryError) as exc_info:
-        sut.poll_for_download_url(export_trigger_timestamp=999)
+        await sut.poll_for_download_url(export_trigger_timestamp=999)
 
     assert isinstance(exc_info.value.last_attempt.exception(), NoActivityError)
 

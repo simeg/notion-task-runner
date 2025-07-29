@@ -3,8 +3,8 @@ from typing import cast
 
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-from notion_task_runner.logger import get_logger
-from notion_task_runner.notion import NotionClient
+from notion_task_runner.logging import get_logger
+from notion_task_runner.notion.async_notion_client import AsyncNotionClient
 from notion_task_runner.tasks.task_config import TaskConfig
 
 log = get_logger(__name__)
@@ -24,7 +24,7 @@ class ExportFileTrigger:
 
     def __init__(
         self,
-        client: NotionClient,
+        client: AsyncNotionClient,
         config: TaskConfig,
         max_retries: int = 3,
         retry_wait_seconds: int = 2,
@@ -34,18 +34,18 @@ class ExportFileTrigger:
         self.max_retries = max_retries
         self.retry_wait_seconds = retry_wait_seconds
 
-    def trigger_export_task(self) -> str | None:
+    async def trigger_export_task(self) -> str | None:
         @retry(
             stop=stop_after_attempt(self.max_retries),
             wait=wait_fixed(self.retry_wait_seconds),
             reraise=True,
         )
-        def _do_trigger() -> str | None:
+        async def _do_trigger() -> str | None:
             headers: dict[str, str] = {
                 "Cookie": f"{self.TOKEN_V2}={self.config.notion_token_v2}",
                 "Content-Type": "application/json",
             }
-            response = self.client.post(
+            response = await self.client.post(
                 self.ENQUEUE_ENDPOINT, data=self._get_task_json(), headers=headers
             )
 
@@ -59,7 +59,7 @@ class ExportFileTrigger:
 
             return cast(str, response["taskId"])
 
-        return _do_trigger()
+        return await _do_trigger()
 
     def _get_task_json(self) -> str:
         return json.dumps(

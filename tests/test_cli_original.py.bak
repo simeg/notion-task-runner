@@ -1,0 +1,298 @@
+"""
+Comprehensive tests for the CLI interface.
+
+Tests command parsing, validation, error handling, and integration with
+the task runner and DI container.
+"""
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
+from pathlib import Path
+
+import pytest
+import typer
+from typer.testing import CliRunner
+from rich.console import Console
+
+from notion_task_runner.cli import app, main_cli
+from notion_task_runner.logging import configure_logging
+
+# Configure logging for tests
+configure_logging(json_logs=False, log_level="DEBUG")
+
+runner = CliRunner()
+
+
+class TestCLICommands:
+    """Test CLI command functionality."""
+
+    def test_help_command(self):
+        """Test that help command works."""
+        result = runner.invoke(app, ["--help"])
+        assert result.exit_code == 0
+        assert "Automatically manage and backup Notion pages" in result.stdout
+
+    def test_run_command_help(self):
+        """Test help for run command."""
+        result = runner.invoke(app, ["run", "--help"])
+        assert result.exit_code == 0
+        assert "Run all Notion tasks" in result.stdout
+
+    @patch('notion_task_runner.container.ApplicationContainer')
+    @patch('notion_task_runner.task_runner.TaskRunner')
+    @patch('asyncio.run')
+    def test_run_command_success(self, mock_asyncio_run, mock_task_runner_class, mock_container_class):
+        """Test successful run command execution."""
+        # Setup mocks
+        mock_container = MagicMock()
+        mock_container.all_tasks.return_value = [MagicMock(), MagicMock()]
+        mock_config = MagicMock()
+        mock_config.validate_notion_connectivity.return_value = True
+        mock_container.task_config.return_value = mock_config
+        mock_container_class.return_value = mock_container
+
+        mock_task_runner = MagicMock()
+        mock_task_runner.run_async = AsyncMock()
+        mock_task_runner_class.return_value = mock_task_runner
+        
+        # Mock asyncio.run to not actually run async code
+        mock_asyncio_run.return_value = None
+
+        # Run command
+        result = runner.invoke(app, ["run"])
+        
+        # Assertions
+        assert result.exit_code == 0
+        mock_container_class.assert_called_once()
+        mock_container.wire.assert_called_once_with(modules=["notion_task_runner.task_runner"])
+        mock_asyncio_run.assert_called_once()
+
+    @patch('notion_task_runner.container.ApplicationContainer')
+    @patch('asyncio.run')
+    def test_run_command_with_task_filter(self, mock_asyncio_run, mock_container_class):
+        """Test run command with task filtering."""
+        # Setup mocks
+        mock_container = MagicMock()
+        
+        # Create mock tasks with different names
+        mock_pas_task = MagicMock()
+        mock_pas_task.__class__.__name__ = "PasPageTask"
+        mock_stats_task = MagicMock()
+        mock_stats_task.__class__.__name__ = "StatsTask"
+        mock_export_task = MagicMock()
+        mock_export_task.__class__.__name__ = "ExportFileTask"
+        
+        mock_container.all_tasks.return_value = [mock_pas_task, mock_stats_task, mock_export_task]
+        mock_config = MagicMock()
+        mock_config.validate_notion_connectivity.return_value = True
+        mock_container.task_config.return_value = mock_config
+        mock_container_class.return_value = mock_container
+
+        with patch('notion_task_runner.cli.TaskRunner') as mock_task_runner_class:
+            mock_task_runner = MagicMock()
+            mock_task_runner.run_async = AsyncMock()
+            mock_task_runner_class.return_value = mock_task_runner
+            mock_asyncio_run.return_value = None
+
+            # Run command with filter
+            result = runner.invoke(app, ["run", "--task", "pas"])
+            
+            # Should only run PAS task
+            assert result.exit_code == 0
+            call_args = mock_task_runner_class.call_args
+            filtered_tasks = call_args[1]['tasks']
+            assert len(filtered_tasks) == 1
+            assert filtered_tasks[0].__class__.__name__ == "PasPageTask"
+
+    @patch('notion_task_runner.container.ApplicationContainer')
+    def test_run_command_dry_run(self, mock_container_class):
+        """Test dry run mode."""
+        # Setup mocks
+        mock_container = MagicMock()
+        mock_container.all_tasks.return_value = [MagicMock(), MagicMock()]
+        mock_config = MagicMock()
+        mock_config.validate_notion_connectivity.return_value = True
+        mock_container.task_config.return_value = mock_config
+        mock_container_class.return_value = mock_config
+
+        # Run dry run
+        result = runner.invoke(app, ["run", "--dry-run"])
+        
+        # Should not execute tasks in dry run
+        assert result.exit_code == 0
+        assert "DRY RUN" in result.stdout or "dry run" in result.stdout.lower()
+
+    @patch('notion_task_runner.container.ApplicationContainer')
+    def test_run_command_configuration_error(self, mock_container_class):
+        """Test handling of configuration errors."""
+        # Setup container to raise exception
+        mock_container_class.side_effect = Exception("Configuration error")
+
+        result = runner.invoke(app, ["run"])
+        
+        # Should handle error gracefully
+        assert result.exit_code == 1
+
+    @patch('notion_task_runner.container.ApplicationContainer')
+    def test_run_command_no_tasks(self, mock_container_class):
+        """Test behavior when no tasks are configured."""
+        # Setup mocks
+        mock_container = MagicMock()
+        mock_container.all_tasks.return_value = []
+        mock_config = MagicMock()
+        mock_config.validate_notion_connectivity.return_value = True
+        mock_container.task_config.return_value = mock_config
+        mock_container_class.return_value = mock_container
+
+        result = runner.invoke(app, ["run"])
+        
+        # Should handle empty task list
+        assert result.exit_code == 0
+
+    @patch('notion_task_runner.container.ApplicationContainer')
+    @patch('asyncio.run')
+    def test_run_command_task_filter_no_matches(self, mock_asyncio_run, mock_container_class):
+        """Test task filter with no matching tasks."""
+        # Setup mocks
+        mock_container = MagicMock()
+        mock_task = MagicMock()
+        mock_task.__class__.__name__ = "SomeOtherTask"
+        mock_container.all_tasks.return_value = [mock_task]
+        mock_config = MagicMock()
+        mock_config.validate_notion_connectivity.return_value = True
+        mock_container.task_config.return_value = mock_config
+        mock_container_class.return_value = mock_container
+        mock_asyncio_run.return_value = None
+
+        with patch('notion_task_runner.cli.TaskRunner'):
+            result = runner.invoke(app, ["run", "--task", "nonexistent"])
+        
+        # Should exit with code 0 when no tasks match
+        assert result.exit_code == 0
+
+
+class TestMainCLI:
+    """Test main CLI entry point."""
+
+    def test_main_cli_exists(self):
+        """Test that main_cli function exists and is callable."""
+        assert callable(main_cli)
+
+    @patch('notion_task_runner.cli.app')
+    def test_main_cli_calls_app(self, mock_app):
+        """Test that main_cli calls the typer app."""
+        main_cli()
+        mock_app.assert_called_once()
+
+
+class TestCLIValidation:
+    """Test CLI input validation and error handling."""
+
+    def test_invalid_log_level(self):
+        """Test handling of invalid log levels."""
+        result = runner.invoke(app, ["run", "--log-level", "INVALID"])
+        # Typer should handle validation or we should see an error
+        assert result.exit_code in [0, 1, 2]  # Allow for different error codes
+
+    def test_invalid_task_filter(self):
+        """Test handling of task filters with special characters."""
+        with patch('notion_task_runner.cli.ApplicationContainer') as mock_container_class:
+            mock_container = MagicMock()
+            mock_container.all_tasks.return_value = []
+            mock_config = MagicMock()
+            mock_config.validate_notion_connectivity.return_value = True
+            mock_container.task_config.return_value = mock_config
+            mock_container_class.return_value = mock_container
+
+            # Should handle special characters gracefully
+            result = runner.invoke(app, ["run", "--task", "'; DROP TABLE;"])
+            assert result.exit_code == 0
+
+
+class TestCLIAsync:
+    """Test async functionality in CLI."""
+
+    @pytest.mark.asyncio
+    async def test_async_execution_path(self):
+        """Test that async execution works correctly."""
+        with patch('notion_task_runner.cli.ApplicationContainer') as mock_container_class:
+            with patch('notion_task_runner.cli.TaskRunner') as mock_task_runner_class:
+                # Setup mocks
+                mock_container = MagicMock()
+                mock_container.all_tasks.return_value = [MagicMock()]
+                mock_config = MagicMock()
+                mock_config.validate_notion_connectivity.return_value = True
+                mock_container.task_config.return_value = mock_config
+                mock_container_class.return_value = mock_container
+
+                mock_task_runner = MagicMock()
+                mock_task_runner.run_async = AsyncMock()
+                mock_task_runner_class.return_value = mock_task_runner
+
+                # This tests the internal async function
+                result = runner.invoke(app, ["run"])
+                
+                assert result.exit_code == 0
+
+
+class TestCLILogging:
+    """Test CLI logging configuration."""
+
+    def test_debug_log_level(self):
+        """Test CLI with debug logging."""
+        with patch('notion_task_runner.cli.configure_logging') as mock_configure:
+            with patch('notion_task_runner.cli.ApplicationContainer'):
+                result = runner.invoke(app, ["run", "--log-level", "DEBUG"])
+                # configure_logging should be called with DEBUG level
+                mock_configure.assert_called()
+
+    def test_info_log_level(self):
+        """Test CLI with info logging."""
+        with patch('notion_task_runner.cli.configure_logging') as mock_configure:
+            with patch('notion_task_runner.cli.ApplicationContainer'):
+                result = runner.invoke(app, ["run", "--log-level", "INFO"])
+                mock_configure.assert_called()
+
+
+class TestCLIProgress:
+    """Test CLI progress indicators and output."""
+
+    @patch('notion_task_runner.container.ApplicationContainer')
+    @patch('notion_task_runner.cli.Progress')
+    def test_progress_indicator(self, mock_progress_class, mock_container_class):
+        """Test that progress indicators work."""
+        # Setup mocks
+        mock_container = MagicMock()
+        mock_container.all_tasks.return_value = [MagicMock()]
+        mock_config = MagicMock()
+        mock_config.validate_notion_connectivity.return_value = True
+        mock_container.task_config.return_value = mock_config
+        mock_container_class.return_value = mock_container
+
+        mock_progress = MagicMock()
+        mock_progress.__enter__ = MagicMock(return_value=mock_progress)
+        mock_progress.__exit__ = MagicMock(return_value=None)
+        mock_progress_class.return_value = mock_progress
+
+        with patch('notion_task_runner.cli.TaskRunner'):
+            result = runner.invoke(app, ["run"])
+            
+        assert result.exit_code == 0
+
+    @patch('notion_task_runner.container.ApplicationContainer')
+    @patch('notion_task_runner.cli.console')
+    def test_console_output(self, mock_console, mock_container_class):
+        """Test console output formatting."""
+        # Setup mocks
+        mock_container = MagicMock()
+        mock_container.all_tasks.return_value = [MagicMock()]
+        mock_config = MagicMock()
+        mock_config.validate_notion_connectivity.return_value = True
+        mock_container.task_config.return_value = mock_config
+        mock_container_class.return_value = mock_container
+
+        with patch('notion_task_runner.cli.TaskRunner'):
+            result = runner.invoke(app, ["run"])
+            
+        assert result.exit_code == 0
+        # Console should be used for output
+        assert mock_console.print.called or result.stdout

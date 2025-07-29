@@ -4,7 +4,7 @@ from google.oauth2 import service_account
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import Resource, build
 
-from notion_task_runner.logger import get_logger
+from notion_task_runner.logging import get_logger
 
 log = get_logger(__name__)
 

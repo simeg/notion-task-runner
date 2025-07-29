@@ -23,32 +23,38 @@ def trigger(mock_client, mock_config):
     return ExportFileTrigger(client=mock_client, config=mock_config)
 
 
-def test_trigger_success(trigger, mock_client):
-    mock_client.post.return_value = {"taskId": "abc123"}
+@pytest.mark.asyncio
+async def test_trigger_success(trigger, mock_client):
+    from unittest.mock import AsyncMock
+    mock_client.post = AsyncMock(return_value={"taskId": "abc123"})
 
-    result = trigger.trigger_export_task()
+    result = await trigger.trigger_export_task()
 
     assert result == "abc123"
     mock_client.post.assert_called_once()
 
 
-def test_trigger_error_without_task_id(trigger, mock_client):
-    mock_client.post.return_value = {
+@pytest.mark.asyncio
+async def test_trigger_error_without_task_id(trigger, mock_client):
+    from unittest.mock import AsyncMock
+    mock_client.post = AsyncMock(return_value={
         "name": "SomeError",
         "message": "Something went wrong",
-    }
+    })
 
-    result = trigger.trigger_export_task()
+    result = await trigger.trigger_export_task()
 
     assert result is None
 
 
-def test_trigger_unauthorized_error(trigger, mock_client):
-    mock_client.post.return_value = {
+@pytest.mark.asyncio
+async def test_trigger_unauthorized_error(trigger, mock_client):
+    from unittest.mock import AsyncMock
+    mock_client.post = AsyncMock(return_value={
         "name": "UnauthorizedError",
         "message": "Invalid token",
-    }
+    })
 
-    result = trigger.trigger_export_task()
+    result = await trigger.trigger_export_task()
 
     assert result is None

@@ -55,11 +55,15 @@ clean:
 	rm -rf .pytest_cache .mypy_cache htmlcov .coverage
 
 ## Run all pre-checks for CI
-ci: run coverage
+ci: lint run coverage
 
-## Run the Notion task runner script
+## Run the Notion task runner with INFO level logging
 run:
-	$(POETRY_RUN) python src/notion_task_runner/task_runner.py
+	$(POETRY_RUN) notion-task-runner --log-level INFO run
+
+## Run the Notion task runner with DEBUG level logging
+run-debug:
+	$(POETRY_RUN) notion-task-runner --log-level DEBUG run
 
 ## Watch for changes and re-run the main script
 watch:

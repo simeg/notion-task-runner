@@ -6,7 +6,7 @@ from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
-from notion_task_runner.logger import get_logger
+from notion_task_runner.logging import get_logger
 from notion_task_runner.tasks.task_config import TaskConfig
 
 log = get_logger(__name__)
@@ -56,7 +56,7 @@ class GoogleDriveUploader:
         return True
 
     def _create_drive_service(self) -> Resource:
-        secret = self.config.google_drive_service_account_secret_json.strip()  # type: ignore[union-attr]
+        secret = self.config.google_drive_service_account_secret_json.strip()
         credentials: Credentials = Credentials.from_service_account_info(  # type: ignore[no-untyped-call]
             json.loads(secret), scopes=["https://www.googleapis.com/auth/drive"]
         )
