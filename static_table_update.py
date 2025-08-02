@@ -1,6 +1,7 @@
-import requests
 import os
+
 import dotenv
+import requests
 
 dotenv.load_dotenv()
 
@@ -31,3 +32,4 @@ if __name__ == "__main__":
       print("✅ Row updated!")
   else:
       print(f"❌ Failed: {response.status_code} - {response.text}")
+

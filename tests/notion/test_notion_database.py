@@ -1,11 +1,10 @@
 from unittest.mock import MagicMock
 
-import pytest
 import aiohttp
+import pytest
 
 from notion_task_runner.notion import NotionDatabase
 from notion_task_runner.tasks.task_config import TaskConfig
-from tests.conftest import mock_client_empty_response
 
 
 @pytest.mark.asyncio

@@ -1,8 +1,8 @@
 from unittest.mock import MagicMock, patch
+
 from googleapiclient.errors import HttpError
 
-from notion_task_runner.tasks.backup.google_drive_client import \
-  GoogleDriveClient
+from notion_task_runner.tasks.backup.google_drive_client import GoogleDriveClient
 
 
 def test_upload_successful(tmp_path):

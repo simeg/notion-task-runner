@@ -20,6 +20,7 @@ class PASPageTask(NotionPageUpdateTask):
 
     BLOCK_ID = "215aa18d-640d-8043-b78c-fab9b2bdf7dc"
     DATABASE_ID = "1fbaa18d-640d-804d-82c0-ce27d072c10b"
+    COLUMN_NAME = "Slutpris"
 
     def __init__(
         self,
@@ -38,7 +39,7 @@ class PASPageTask(NotionPageUpdateTask):
         return self.DATABASE_ID
 
     def get_column_name(self) -> str:
-        return "Slutpris"
+        return self.COLUMN_NAME
 
     def get_display_text(self, total_value: float) -> str:
         return "Sålt för totalt: "

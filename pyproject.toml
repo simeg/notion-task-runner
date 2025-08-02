@@ -61,10 +61,11 @@ exclude = '''
 line-length = 88
 target-version = "py310"
 src = ["src"]
-lint.extend-select = ["I", "B", "C4", "SIM", "UP", "RUF", "F821"]
+lint.extend-select = ["I", "B", "C4", "SIM", "UP", "RUF", "F821", "W291", "W292", "W293"]
 # I = isort rules, B = bugbear, C4 = comprehensions, SIM = simplifications, UP = pyupgrade
 # RUF = ruff-specific, F821 = undefined names
-exclude = ["build", "dist", ".venv"]
+# W291 = trailing whitespace, W292 = no newline at end of file, W293 = blank line contains whitespace
+exclude = ["build", "dist", ".venv", ".git"]
 
 [tool.mypy]
 python_version = "3.10"

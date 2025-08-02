@@ -1,10 +1,11 @@
-import pytest
-import asyncio
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
+import pytest
+
+from notion_task_runner.notion.async_notion_client import AsyncNotionClient
 from notion_task_runner.task_runner import TaskRunner
 from notion_task_runner.tasks.task_config import TaskConfig
-from notion_task_runner.notion.async_notion_client import AsyncNotionClient
+
 
 @pytest.fixture
 def mock_config():
@@ -17,7 +18,7 @@ def mock_client():
 @pytest.mark.asyncio
 async def test_task_runner_runs_all_tasks(mock_config):
     from unittest.mock import AsyncMock
-    
+
     # Arrange
     mock_task1 = MagicMock()
     mock_task1.run = AsyncMock()
@@ -40,7 +41,7 @@ async def test_task_runner_runs_all_tasks(mock_config):
 @pytest.mark.asyncio
 async def test_task_runner_handles_exceptions_gracefully(mock_config):
     from unittest.mock import AsyncMock
-    
+
     # Arrange
     mock_task1 = MagicMock()
     mock_task1.run = AsyncMock(side_effect=Exception("Task 1 failed"))

@@ -1,8 +1,9 @@
 import json
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from notion_task_runner.tasks.backup.google_drive_service_factory import \
-  GoogleDriveServiceFactory
+from notion_task_runner.tasks.backup.google_drive_service_factory import (
+  GoogleDriveServiceFactory,
+)
 
 
 def test_create_returns_service_on_success():

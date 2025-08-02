@@ -3,8 +3,12 @@ from unittest.mock import MagicMock
 import pytest
 import tenacity
 
-from notion_task_runner.tasks.download_export.export_file_poller import \
-    ExportFilePoller, StaleExportError, MissingExportLinkError, NoActivityError
+from notion_task_runner.tasks.download_export.export_file_poller import (
+    ExportFilePoller,
+    MissingExportLinkError,
+    NoActivityError,
+    StaleExportError,
+)
 
 
 @pytest.fixture

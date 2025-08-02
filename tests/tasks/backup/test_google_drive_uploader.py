@@ -1,6 +1,8 @@
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 from googleapiclient.errors import HttpError
+
 from notion_task_runner.tasks.backup.google_drive_uploader import GoogleDriveUploader
 from notion_task_runner.tasks.task_config import TaskConfig
 

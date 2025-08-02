@@ -1,6 +1,7 @@
 import pytest
-from notion_task_runner.tasks.pas.pas_page_task import PASPageTask
+
 from notion_task_runner.logging import configure_logging
+from notion_task_runner.tasks.pas.pas_page_task import PASPageTask
 
 # Configure logging for tests to work with caplog
 configure_logging(json_logs=False, log_level="DEBUG")
@@ -53,7 +54,7 @@ async def test_pas_page_task_handles_client_error(caplog, mock_notion_client_400
     # Configure the mock to properly raise an exception when raise_for_status is called
     import aiohttp
     mock_notion_client_400.patch.return_value.raise_for_status.side_effect = aiohttp.ClientResponseError(None, None, status=400, message="Client Error")
-    
+
     sut = PASPageTask(
         client=mock_notion_client_400,
         db=mock_db_w_props,
@@ -62,9 +63,8 @@ async def test_pas_page_task_handles_client_error(caplog, mock_notion_client_400
         block_id="test-page"
     )
 
-    with caplog.at_level("INFO"):
-        with pytest.raises(aiohttp.ClientResponseError):  # Direct exception from mock
-            await sut.run()
+    with caplog.at_level("INFO"), pytest.raises(aiohttp.ClientResponseError):  # Direct exception from mock
+        await sut.run()
 
     mock_db_w_props.fetch_rows.assert_called_once()
     mock_calculator_30.calculate_total_for_column.assert_called_once_with([{'properties': {'Slutpris': {'number': 10}}}, {'properties': {'Slutpris': {'number': 20}}}], "Slutpris")

@@ -19,7 +19,7 @@ If the block you want to update is inside a column, for example, you first
 need to fetch the parent block ID (the column block ID) and then use that to
 fetch children all the way until you find the block you want to update.
 
-This script prints the type of block and that's useful for knowing if you've 
+This script prints the type of block and that's useful for knowing if you've
 searched deep enough.
 """
 
@@ -46,8 +46,9 @@ if __name__ == "__main__":
         uuid = convert_to_uuid(raw_id)
         uuid = "21eaa18d-640d-80b2-bce4-e9ba5e63fb39"
 
-        import requests
         import os
+
+        import requests
 
         page_id = uuid  # Replace with your actual page ID
         url = f"https://api.notion.com/v1/blocks/{page_id}/children"
@@ -78,3 +79,4 @@ if __name__ == "__main__":
 
     except ValueError as e:
         print(f"Error: {e}")
+

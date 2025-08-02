@@ -4,8 +4,9 @@ from unittest.mock import MagicMock
 import pytest
 
 from notion_task_runner.notion.async_notion_client import AsyncNotionClient
-from notion_task_runner.tasks.download_export.export_file_downloader import \
-    ExportFileDownloader
+from notion_task_runner.tasks.download_export.export_file_downloader import (
+    ExportFileDownloader,
+)
 
 
 @pytest.fixture
@@ -16,14 +17,14 @@ def fake_path(tmp_path):
 @pytest.mark.asyncio
 async def test_download_and_verify_success(tmp_path):
     from unittest.mock import AsyncMock
-    
+
     client = MagicMock(spec=AsyncNotionClient)
     downloader = ExportFileDownloader(client)
 
     # Mock response with iter_chunked
     async def mock_iter_chunked(size):
         yield b'data chunk'
-    
+
     mock_content = MagicMock()
     mock_content.iter_chunked = mock_iter_chunked
     mock_response = MagicMock()
@@ -42,7 +43,7 @@ async def test_download_and_verify_success(tmp_path):
 @pytest.mark.asyncio
 async def test_download_and_verify_fail_download(tmp_path):
     from unittest.mock import AsyncMock
-    
+
     client = MagicMock(spec=AsyncNotionClient)
     downloader = ExportFileDownloader(client)
 
@@ -57,8 +58,7 @@ async def test_download_and_verify_fail_download(tmp_path):
 
 @pytest.mark.asyncio
 async def test_download_file_exception(tmp_path):
-    from unittest.mock import AsyncMock
-    
+
     client = MagicMock(spec=AsyncNotionClient)
     downloader = ExportFileDownloader(client)
 
@@ -69,8 +69,7 @@ async def test_download_file_exception(tmp_path):
 
 @pytest.mark.asyncio
 async def test_download_file_retries_on_failure(tmp_path: Path):
-    from unittest.mock import AsyncMock
-    
+
     client = MagicMock(spec=AsyncNotionClient)
     client.get.side_effect = Exception("network error")
 

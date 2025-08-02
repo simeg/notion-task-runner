@@ -1,11 +1,10 @@
 import time
 from pathlib import Path
-import pytest
 from unittest.mock import patch
 
-from notion_task_runner.tasks.backup.export_file_watcher import \
-  ExportFileWatcher
+import pytest
 
+from notion_task_runner.tasks.backup.export_file_watcher import ExportFileWatcher
 
 
 def test_wait_for_file_finds_file_immediately(tmp_path: Path):

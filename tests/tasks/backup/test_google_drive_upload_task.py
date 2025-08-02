@@ -1,7 +1,11 @@
-import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-from notion_task_runner.tasks.backup.google_drive_upload_task import GoogleDriveUploadTask
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from notion_task_runner.tasks.backup.google_drive_upload_task import (
+    GoogleDriveUploadTask,
+)
 from notion_task_runner.tasks.task_config import TaskConfig
 
 

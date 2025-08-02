@@ -1,6 +1,10 @@
-import pytest
 from unittest.mock import MagicMock
-from notion_task_runner.tasks.download_export.export_file_trigger import ExportFileTrigger
+
+import pytest
+
+from notion_task_runner.tasks.download_export.export_file_trigger import (
+    ExportFileTrigger,
+)
 
 
 @pytest.fixture

@@ -1,8 +1,13 @@
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock
 
 from notion_task_runner.tasks.pas.sum_calculator import SumCalculator
 
+# Test constants
+TEST_API_KEY = "secret_api_key_123456789"
+TEST_SPACE_ID = "space_id_123456789"
+TEST_DATABASE_ID = "database_id_123456789"
 
 # ========================
 # Calculator Fixtures
@@ -34,14 +39,14 @@ def mock_calculator_30():
 @pytest.fixture
 def mock_notion_client_200():
   client = MagicMock()
-  
+
   # Create a mock response with proper methods
   mock_response = MagicMock()
   mock_response.status_code = 200
   mock_response.status = 200
   mock_response.text = AsyncMock(return_value="OK")
   mock_response.raise_for_status = MagicMock(return_value=None)  # Don't use AsyncMock for this
-  
+
   client.patch = AsyncMock(return_value=mock_response)
   client.post = AsyncMock()
   return client
@@ -51,7 +56,7 @@ def mock_notion_client_200():
 def mock_notion_client_400():
   import aiohttp
   client = MagicMock()
-  
+
   # Create a mock response that raises ClientResponseError on raise_for_status()
   mock_response = MagicMock()
   mock_response.status_code = 400
@@ -60,13 +65,13 @@ def mock_notion_client_400():
   # Use regular MagicMock for raise_for_status, not AsyncMock
   def raise_for_status():
     raise aiohttp.ClientResponseError(
-      request_info=MagicMock(), 
+      request_info=MagicMock(),
       history=(),
       status=400,
       message="Bad Request"
     )
   mock_response.raise_for_status = raise_for_status
-  
+
   client.patch = AsyncMock(return_value=mock_response)
   # Return a dict with error status for post calls to database
   client.post = AsyncMock(return_value={"status": 400, "message": "Bad Request"})
@@ -149,3 +154,24 @@ def mock_config():
     mock.from_env.return_value = mock
     mock.notion_api_key = "some-api-key"
     return mock
+
+
+@pytest.fixture
+def mock_async_notion_client():
+    """Create a mock AsyncNotionClient for testing."""
+    from unittest.mock import patch
+    from notion_task_runner.notion.async_notion_client import AsyncNotionClient
+
+    def _create_mock_client(config=None):
+        if config is None:
+            config = MagicMock()
+            config.notion_api_key = TEST_API_KEY
+            config.notion_space_id = TEST_SPACE_ID
+
+        with (patch.object(AsyncNotionClient, '__new__', return_value=object.__new__(AsyncNotionClient)),
+              patch.object(AsyncNotionClient, '_validate_config')):
+            client = AsyncNotionClient(config)
+            client.config = config
+            return client
+
+    return _create_mock_client

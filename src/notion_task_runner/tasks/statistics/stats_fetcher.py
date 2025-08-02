@@ -126,7 +126,7 @@ class StatsFetcher:
 
             raw_type = self._get_plain_text(props, "Type")
             if not raw_type:
-                log.warning(
+                log.debug(
                     f"Missing cable type in row {row.get('id', 'unknown')}, defaulting to OTHER"
                 )
                 cable_type = CableType.OTHER
@@ -135,7 +135,7 @@ class StatsFetcher:
 
             length = props["Length (cm)"]["number"]
             if length is None or length <= 0:
-                log.warning(
+                log.debug(
                     f"Skipping cable with invalid length: {length} in row {row.get('id', 'unknown')}"
                 )
                 continue

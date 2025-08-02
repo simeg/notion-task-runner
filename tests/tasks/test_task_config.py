@@ -1,9 +1,10 @@
 import os
-import pytest
 from unittest.mock import patch
+
+import pytest
 from pydantic import ValidationError
 
-from notion_task_runner.tasks.task_config import TaskConfig, DEFAULT_EXPORT_DIR
+from notion_task_runner.tasks.task_config import DEFAULT_EXPORT_DIR, TaskConfig
 
 
 @patch.dict(os.environ, {
@@ -34,24 +35,24 @@ def test_task_config_missing_required_env_vars(monkeypatch, tmp_path):
     # Create an empty .env file to override the default one
     env_file = tmp_path / ".env"
     env_file.write_text("")
-    
+
     # Change to temp directory so it loads the empty .env file
     monkeypatch.chdir(tmp_path)
-    
+
     # Explicitly remove all required environment variables
     monkeypatch.delenv("NOTION_SPACE_ID", raising=False)
     monkeypatch.delenv("NOTION_TOKEN_V2", raising=False)
     monkeypatch.delenv("NOTION_API_KEY", raising=False)
     monkeypatch.delenv("GOOGLE_DRIVE_SERVICE_ACCOUNT_SECRET_JSON", raising=False)
     monkeypatch.delenv("GOOGLE_DRIVE_ROOT_FOLDER_ID", raising=False)
-    
+
     with pytest.raises(ValidationError):
         TaskConfig()
 
 
 @patch.dict(os.environ, {
     "NOTION_SPACE_ID": "space-id",
-    "NOTION_TOKEN_V2": "token-v2", 
+    "NOTION_TOKEN_V2": "token-v2",
     "NOTION_API_KEY": "api-key",
     "GOOGLE_DRIVE_SERVICE_ACCOUNT_SECRET_JSON": '{"type": "service_account"}',
     "GOOGLE_DRIVE_ROOT_FOLDER_ID": "root-folder-id",
@@ -73,7 +74,7 @@ def test_config_download_export_task_defaults(tmp_path, monkeypatch):
 @patch.dict(os.environ, {
     "NOTION_SPACE_ID": "space-id",
     "NOTION_TOKEN_V2": "token-v2",
-    "NOTION_API_KEY": "api-key", 
+    "NOTION_API_KEY": "api-key",
     "GOOGLE_DRIVE_SERVICE_ACCOUNT_SECRET_JSON": '{"type": "service_account"}',
     "GOOGLE_DRIVE_ROOT_FOLDER_ID": "root-folder-id",
     "EXPORT_TYPE": "pdf",  # Invalid type
