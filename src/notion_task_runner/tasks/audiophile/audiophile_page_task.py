@@ -41,7 +41,7 @@ class AudiophilePageTask(NotionPageUpdateTask):
         return "Kostnad"
 
     def get_display_text(self, total_value: float) -> str:
-        return "Mina HiFi hörlurar saker. Total kostnad: "
+        return "Mina HiFi hörlurar prylar. Total kostnad: "
 
     def get_task_name(self) -> str:
         return "Audiophile Page Task"
