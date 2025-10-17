@@ -3,10 +3,20 @@ POETRY_RUN=poetry run
 SRC=src/
 WATCH_FILES = find . -type f
 
-.PHONY: default check-style fix-style format-code sort-imports check-types coverage coverage-html test lint format clean ci run watch watch-test watch-test-only help
+.PHONY: default setup check-style fix-style format-code sort-imports check-types coverage coverage-html test lint format clean ci run watch watch-test watch-test-only help
 
 ## Default target: run linting and type checks
 default: lint
+
+## Setup: Install Poetry dependencies and verify installation
+setup:
+	@echo "Installing dependencies with Poetry..."
+	poetry install
+	@echo "Verifying installation..."
+	$(POETRY_RUN) ruff --version
+	$(POETRY_RUN) black --version
+	$(POETRY_RUN) mypy --version
+	@echo "Setup complete! You can now run 'make ci' or other targets."
 
 ## Run Ruff to check for lint issues
 check-style:

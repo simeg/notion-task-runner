@@ -8,6 +8,7 @@ with calculated values from database queries.
 from abc import abstractmethod
 from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from notion_task_runner.constants import (
     DATETIME_FORMAT,
@@ -129,7 +130,7 @@ class NotionPageUpdateTask(Task, HTTPClientMixin):
         Raises:
             aiohttp.ClientError: If the API request fails
         """
-        now = datetime.now()
+        now = datetime.now(ZoneInfo("Europe/Stockholm"))
         time_and_date_now = now.strftime(DATETIME_FORMAT)
 
         url = get_notion_block_update_url(self.block_id)

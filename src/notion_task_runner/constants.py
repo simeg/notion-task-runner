@@ -58,5 +58,5 @@ VALID_EXPORT_TYPES = ["markdown", "html"]
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_RETRY_WAIT_SECONDS = 2
 
-# Date/Time Formatting
+# Date/Time Formatting, will output like "09:12 17/10"
 DATETIME_FORMAT = "%H:%M %d/%-m"

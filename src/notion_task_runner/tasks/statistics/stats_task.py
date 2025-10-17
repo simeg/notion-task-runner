@@ -2,6 +2,7 @@ import asyncio
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import aiohttp
 
@@ -163,7 +164,7 @@ class StatsTask(Task, HTTPClientMixin):
 
     async def _update_last_updated_text(self) -> None:
         """Update the 'last updated' timestamp on the stats page."""
-        now = datetime.now()
+        now = datetime.now(ZoneInfo("Europe/Stockholm"))
         time_and_date_now = now.strftime(DATETIME_FORMAT)
 
         block_id = "233aa18d-640d-80a5-987d-d6a98f96a8d0"

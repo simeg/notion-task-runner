@@ -1,4 +1,5 @@
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import aiohttp
 
@@ -61,7 +62,7 @@ class PrylarkivPageTask(Task):
                 f"Found {len(rows)} existing items, next number: {next_pryl_number}"
             )
 
-            now = datetime.now()
+            now = datetime.now(ZoneInfo("Europe/Stockholm"))
             time_and_date_now = now.strftime(DATETIME_FORMAT)
 
             url = get_notion_block_update_url(self.block_id)
