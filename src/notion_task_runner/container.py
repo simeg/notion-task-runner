@@ -14,6 +14,7 @@ from notion_task_runner.tasks.car.car_costs_task import CarCostsTask
 from notion_task_runner.tasks.pas.pas_page_task import PASPageTask
 from notion_task_runner.tasks.pas.sum_calculator import SumCalculator
 from notion_task_runner.tasks.prylarkiv.prylarkiv_page_task import PrylarkivPageTask
+from notion_task_runner.tasks.record_shops.record_shops_task import RecordShopsTask
 from notion_task_runner.tasks.statistics.stats_task import StatsTask
 from notion_task_runner.tasks.task_config import TaskConfig
 
@@ -78,6 +79,13 @@ class ApplicationContainer(containers.DeclarativeContainer):
         calculator=sum_calculator,
     )
 
+    record_shops_task = providers.Factory(
+        RecordShopsTask,
+        client=async_notion_client,
+        db=notion_database,
+        config=task_config,
+    )
+
     # Task list provider
     all_tasks = providers.List(
         pas_page_task,
@@ -85,4 +93,5 @@ class ApplicationContainer(containers.DeclarativeContainer):
         car_costs_task,
         stats_task,
         audiophile_page_task,
+        record_shops_task,
     )
